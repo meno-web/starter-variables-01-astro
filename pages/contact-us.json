@@ -1,0 +1,253 @@
+{
+  "root": {
+    "type": "component",
+    "component": "Layout",
+    "children": [
+      {
+        "type": "component",
+        "component": "Navigation"
+      },
+      {
+        "type": "node",
+        "tag": "section",
+        "style": {
+          "base": {
+            "padding": "var(--s-p)",
+            "backgroundColor": "var(--bg)"
+          },
+          "tablet": {},
+          "mobile": {}
+        },
+        "children": [
+          {
+            "type": "node",
+            "tag": "container",
+            "style": {
+              "base": {
+                "display": "block",
+                "maxWidth": "640px",
+                "margin": "auto"
+              },
+              "tablet": {},
+              "mobile": {}
+            },
+            "children": [
+              {
+                "type": "node",
+                "tag": "div",
+                "style": {
+                  "base": {
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "justifyContent": "flex-start",
+                    "alignItems": "center",
+                    "textAlign": "center",
+                    "marginBottom": "52px"
+                  },
+                  "tablet": {},
+                  "mobile": {}
+                },
+                "children": [
+                  {
+                    "type": "node",
+                    "tag": "h1",
+                    "style": {
+                      "base": {
+                        "fontSize": "var(--he-fs)",
+                        "letterSpacing": "var(--h-ls)",
+                        "fontWeight": "var(--h-fw)",
+                        "marginBottom": "var(--h-m)",
+                        "lineHeight": "var(--h-lh)",
+                        "color": "var(--text)",
+                        "textAlign": "center"
+                      },
+                      "tablet": {},
+                      "mobile": {}
+                    },
+                    "children": "<!--MENO_RAW_HTML-->Get in <span class=\"custom-span\" data-meno-span=\"true\">touch</span>"
+                  },
+                  {
+                    "type": "node",
+                    "tag": "p",
+                    "style": {
+                      "base": {
+                        "fontSize": "var(--t-fs)",
+                        "letterSpacing": "var(--t-ls)",
+                        "fontWeight": "var(--t-fw)",
+                        "lineHeight": "var(--t-lh)",
+                        "color": "var(--text)",
+                        "textAlign": "center",
+                        "maxWidth": "500px"
+                      },
+                      "tablet": {},
+                      "mobile": {}
+                    },
+                    "children": "Have a question or want to work together? Send us a message and we will get back to you shortly."
+                  }
+                ]
+              },
+              {
+                "type": "node",
+                "tag": "form",
+                "style": {
+                  "base": {
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "justifyContent": "flex-start",
+                    "alignItems": "stretch",
+                    "gap": "20px"
+                  },
+                  "tablet": {},
+                  "mobile": {}
+                },
+                "attributes": {
+                  "action": "/api/send-email",
+                  "method": "post"
+                },
+                "children": [
+                  {
+                    "type": "component",
+                    "component": "Input",
+                    "props": {
+                      "label": "Name",
+                      "inputId": "name",
+                      "inputName": "name",
+                      "inputType": "text",
+                      "placeholder": "John Doe",
+                      "required": true
+                    }
+                  },
+                  {
+                    "type": "component",
+                    "component": "Input",
+                    "props": {
+                      "label": "Email",
+                      "inputId": "email",
+                      "inputName": "email",
+                      "inputType": "email",
+                      "placeholder": "johndoe@email.com",
+                      "required": true
+                    }
+                  },
+                  {
+                    "type": "component",
+                    "component": "Input",
+                    "props": {
+                      "label": "Phone",
+                      "inputId": "phone",
+                      "inputName": "phone",
+                      "inputType": "tel",
+                      "placeholder": "0 000 000 000",
+                      "required": false
+                    }
+                  },
+                  {
+                    "type": "component",
+                    "component": "Select",
+                    "props": {
+                      "label": "Subject",
+                      "inputId": "subject",
+                      "inputName": "subject",
+                      "required": true,
+                      "options": [
+                        { "label": "Select a subject", "value": "" },
+                        { "label": "General inquiry", "value": "general" },
+                        { "label": "Support", "value": "support" },
+                        { "label": "Partnership", "value": "partnership" },
+                        { "label": "Other", "value": "other" }
+                      ]
+                    }
+                  },
+                  {
+                    "type": "component",
+                    "component": "RadioGroup",
+                    "props": {
+                      "label": "Preferred contact method",
+                      "inputName": "contactMethod",
+                      "required": true,
+                      "options": [
+                        { "label": "Email", "value": "email" },
+                        { "label": "Phone", "value": "phone" }
+                      ]
+                    }
+                  },
+                  {
+                    "type": "component",
+                    "component": "TextArea",
+                    "props": {
+                      "label": "Message",
+                      "inputId": "message",
+                      "inputName": "message",
+                      "placeholder": "Message",
+                      "rows": 6,
+                      "required": true
+                    }
+                  },
+                  {
+                    "type": "component",
+                    "component": "Checkbox",
+                    "props": {
+                      "label": "Subscribe to our newsletter",
+                      "inputId": "newsletter",
+                      "inputName": "newsletter",
+                      "value": "yes",
+                      "checked": false,
+                      "required": false
+                    }
+                  },
+                  {
+                    "type": "component",
+                    "component": "Checkbox",
+                    "props": {
+                      "label": "I agree to the privacy policy",
+                      "inputId": "privacy",
+                      "inputName": "privacy",
+                      "value": "yes",
+                      "checked": false,
+                      "required": true
+                    }
+                  },
+                  {
+                    "type": "node",
+                    "tag": "button",
+                    "style": {
+                      "base": {
+                        "padding": "var(--b-p)",
+                        "display": "inline-flex",
+                        "flexDirection": "row",
+                        "justifyContent": "center",
+                        "alignItems": "center",
+                        "backgroundColor": "var(--accent)",
+                        "borderRadius": "var(--b-br)",
+                        "color": "var(--white)",
+                        "fontSize": "var(--te-fs)",
+                        "fontWeight": "500",
+                        "border": "none",
+                        "cursor": "pointer",
+                        "marginTop": "var(--b-m)"
+                      },
+                      "tablet": {},
+                      "mobile": {}
+                    },
+                    "attributes": {
+                      "type": "submit"
+                    },
+                    "children": "Send Message"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "component",
+        "component": "Footer"
+      }
+    ]
+  },
+  "meta": {
+    "title": "Contact Us",
+    "description": "Get in touch with our team. Send us a message and we will get back to you shortly."
+  }
+}

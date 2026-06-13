@@ -1,0 +1,29 @@
+{
+  "_id": "blg001",
+  "_filename": "modern-web-development",
+  "_createdAt": "2025-01-15T10:00:00Z",
+  "title": "Getting Started with Modern Web Development",
+  "slug": "modern-web-development",
+  "category": "Technology",
+  "date": "Jan 15, 2025",
+  "description": "Learn the fundamentals of modern web development and best practices for building scalable applications.",
+  "image": "/images/placeholder-img.webp",
+  "content": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "textAlign": null
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Modern web development combines fast tooling, component-driven design, and clear data flow."
+          }
+        ]
+      }
+    ]
+  },
+  "_url": "/blog/modern-web-development"
+}

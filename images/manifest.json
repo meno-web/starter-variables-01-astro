@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "images": {
+    "placeholder-img.webp": {
+      "filename": "placeholder-img.webp",
+      "originalFilename": "placeholder-img.webp",
+      "width": 1200,
+      "height": 1200,
+      "blurHash": "data:image/webp;base64,UklGRjIAAABXRUJQVlA4ICYAAADQAgCdASogACAAPzmWwlmvKqcjqAgB4CcJaQAAPaOgAP7rrgAAAA==",
+      "formats": {
+        "avif": true,
+        "webp": true
+      },
+      "variants": [
+        {
+          "width": 500,
+          "webpFilename": "placeholder-img-500.webp",
+          "avifFilename": ""
+        },
+        {
+          "width": 800,
+          "webpFilename": "placeholder-img-800.webp",
+          "avifFilename": ""
+        },
+        {
+          "width": 1080,
+          "webpFilename": "placeholder-img-1080.webp",
+          "avifFilename": ""
+        }
+      ],
+      "createdAt": "2026-04-23T11:16:39.005Z",
+      "updatedAt": "2026-04-23T11:16:39.005Z"
+    }
+  }
+}

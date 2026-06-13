@@ -1,0 +1,92 @@
+{
+  "component": {
+    "structure": {
+      "type": "node",
+      "tag": "div",
+      "style": {
+        "base": {
+          "display": "flex",
+          "flexDirection": "column",
+          "alignItems": "stretch",
+          "gap": "8px",
+          "width": "100%"
+        },
+        "tablet": {},
+        "mobile": {}
+      },
+      "children": [
+        {
+          "type": "node",
+          "tag": "label",
+          "style": {
+            "base": {
+              "fontSize": "var(--te-fs)",
+              "letterSpacing": "var(--t-ls)",
+              "fontWeight": "500",
+              "color": "var(--text)"
+            },
+            "tablet": {},
+            "mobile": {}
+          },
+          "attributes": {
+            "for": "{{inputId}}"
+          },
+          "children": "{{label}}"
+        },
+        {
+          "type": "node",
+          "tag": "input",
+          "style": {
+            "base": {
+              "padding": "12px 16px",
+              "fontSize": "var(--te-fs)",
+              "color": "var(--text)",
+              "backgroundColor": "var(--bg)",
+              "border": "1px solid",
+              "borderRadius": "var(--b-br)",
+              "outline": "none",
+              "width": "100%",
+              "borderColor": "var(--border)"
+            },
+            "tablet": {},
+            "mobile": {}
+          },
+          "attributes": {
+            "type": "{{inputType}}",
+            "id": "{{inputId}}",
+            "name": "{{inputName}}",
+            "placeholder": "{{placeholder}}",
+            "required": "{{required}}"
+          }
+        }
+      ]
+    },
+    "interface": {
+      "label": {
+        "type": "string",
+        "default": "Label"
+      },
+      "inputId": {
+        "type": "string",
+        "default": "field"
+      },
+      "inputName": {
+        "type": "string",
+        "default": "field"
+      },
+      "inputType": {
+        "type": "select",
+        "options": ["text", "email", "tel", "url", "password", "number"],
+        "default": "text"
+      },
+      "placeholder": {
+        "type": "string",
+        "default": "Type here..."
+      },
+      "required": {
+        "type": "boolean",
+        "default": false
+      }
+    }
+  }
+}

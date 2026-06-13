@@ -1,0 +1,29 @@
+{
+  "_id": "blg003",
+  "_filename": "design-systems-guide",
+  "_createdAt": "2025-01-10T10:00:00Z",
+  "title": "Design Systems: A Complete Guide",
+  "slug": "design-systems-guide",
+  "category": "Design",
+  "date": "Jan 10, 2025",
+  "description": "How to build and maintain a design system that scales with your organization.",
+  "image": "/images/placeholder-img.webp",
+  "content": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "textAlign": null
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "A design system is the shared language that lets product, design, and engineering move in lockstep."
+          }
+        ]
+      }
+    ]
+  },
+  "_url": "/blog/design-systems-guide"
+}

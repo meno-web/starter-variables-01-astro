@@ -1,0 +1,12 @@
+{
+  "name": "starter-variables-01-astro",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "meno dev",
+    "build": "meno build"
+  },
+  "dependencies": {
+    "meno-core": "^1.0.47"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "editor": {
+    "theme": "light"
+  },
+  "i18n": {
+    "defaultLocale": "en",
+    "locales": [
+      {
+        "code": "en",
+        "name": "EN",
+        "nativeName": "EN",
+        "langTag": "en-US"
+      }
+    ]
+  },
+  "breakpoints": {
+    "tablet": 1024,
+    "mobile": 540
+  },
+  "responsiveScales": {
+    "enabled": true,
+    "baseReference": 16,
+    "fontSize": {
+      "tablet": 0.8,
+      "mobile": 0.7
+    },
+    "padding": {
+      "tablet": 0.75,
+      "mobile": 0.5
+    },
+    "margin": {
+      "tablet": 0.7,
+      "mobile": 0.45
+    },
+    "gap": {
+      "tablet": 0.65,
+      "mobile": 0.4
+    },
+    "borderRadius": {
+      "tablet": 0.85,
+      "mobile": 0.7
+    },
+    "size": {
+      "tablet": 0.9,
+      "mobile": 0.75
+    }
+  },
+  "fonts": [],
+  "imageFormat": "webp",
+  "baseComponent": "Layout",
+  "deploy": {
+    "method": "cloudflare"
+  },
+  "name": "starter-variables-01-astro"
+}
