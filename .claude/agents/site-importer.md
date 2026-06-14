@@ -27,12 +27,13 @@ You convert a single URL into a complete Meno project. You run **autonomously** 
 
 **Lazy-load (only when entering the step that needs them):**
 - `.claude/docs/meno/components.md` — before 2f-iv (Layout / Header / Footer construction)
-- `.claude/docs/meno/cms-schema.md` — at start of STEP 3
-- `.claude/docs/meno/website-convert.md` — at start of 2f-v (section componentization)
+- the `/meno-astro` skill + `.claude/docs/meno/meno-astro-dialect.md` — at start of 2f-v (section componentization) and at start of STEP 3 (CMS template-page shape; use the `/meno-astro` CMS template skeleton)
 - `.claude/docs/meno/core.md` — at start of 2f-v (page/node shape reference)
 - `CLAUDE.md` (project root) — reference only; don't preload
 
-Don't load all six up front. Five minutes of doc-reading before the first network call is wasted wall-clock.
+Don't load all of these up front. Five minutes of doc-reading before the first network call is wasted wall-clock.
+
+> **Format note (astro project).** This project stores its source as `.astro` files, not `.json`. The Studio dev-server API is **format-transparent** — every save/CMS payload below is the same node-tree JSON model regardless of on-disk format, and the provider layer emits/parses `.astro` under the hood. So you never write project files directly; you POST the same payloads to the same routes. The only thing that changes is *disk reads*: a page is `src/pages/<slug>.astro`, a component is `src/components/**/<Name>.astro` (`Layout.astro` at `src/components/Layout.astro`), a CMS template page is `src/pages/<collection>/[slug].astro`, and CMS items are JSON under `src/content/<collection>/`. To check what's in the library, glob `src/components/**/*.astro` (filename stem = component name) or `GET /api/component-data` (list).
 
 ## Critical workflow rules
 
@@ -49,7 +50,7 @@ A "batch" means one assistant response with multiple Bash tool calls — not thr
 
 ### Progressive shell — save the homepage early, refine later
 
-After `/api/html-to-meno-fragment` returns (step 2e), do NOT wait to factor sections before saving. **Immediately** save `pages/index.json` with the raw fragment wrapped in a passthrough or Layout. Then factor sections in subsequent steps, replacing inline blocks with component instances. Every factor is a small, reviewable diff. **Stopping after this save is acceptable.** Continuing makes it tidier.
+After `/api/html-to-meno-fragment` returns (step 2e), do NOT wait to factor sections before saving. **Immediately** save the homepage page (`src/pages/index.astro`) with the raw fragment wrapped in a passthrough or Layout. Then factor sections in subsequent steps, replacing inline blocks with component instances. Every factor is a small, reviewable diff. **Stopping after this save is acceptable.** Continuing makes it tidier.
 
 ### Batched saves — `/api/save-components` (plural)
 
@@ -83,7 +84,9 @@ STEP 2 — HOMEPAGE DEEP PASS  (3-way parallel after fragment lands)
   ──── BATCH A: /api/fetch-sitemap + sidecar /extract + sidecar /probe + /api/import-website
   ──── BATCH B: /api/analyze-page + /api/extract-page-content
   ──── /api/html-to-meno-fragment   ── (output to fragment.json on disk via curl -o)
-  ──── PROGRESSIVE SAVE: pages/index.json wrapping raw fragment in Layout
+  ──── PROGRESSIVE SAVE: POST /api/save-page wrapping raw fragment in Layout
+        (path: "pages/index.json" — the API takes the node-tree model; the provider
+         emits src/pages/index.astro on disk. Payload body is UNCHANGED.)
 
   ──── PARALLEL SUB-AGENT DISPATCH (one assistant response, two Task calls)
 
@@ -102,7 +105,7 @@ Write variables.json + colors.json (preserve existing keys). Follow
       prompt: "Process interactions.json for host=<host>, pageSlug=home.
 Read rendered-websites/<host>/pages/home/interactions.json. Write
 rendered-websites/<host>/pages/home/patch-plan.json (selector→style-diff map).
-DO NOT touch components/. Follow .claude/agents/site-importer-interactions.md
+DO NOT touch components. Follow .claude/agents/site-importer-interactions.md
 exactly. Report when done."
     })
 
@@ -125,6 +128,8 @@ exactly. Report when done."
     Read patch-plan.json. For each entry:
       - state=hover|focus, selector=<S>, styles=<diff>
       - Find the component whose carved tree contains a node matching <S>.
+        (Read a component's node-tree model via GET /api/component-data/<Name>
+         — it returns { interface, structure, ... }. Don't read .astro off disk.)
         Selector matching is best-effort:
           1. If selector starts with "#" → exact id match anywhere
           2. If selector is class-only → first component whose structure
@@ -142,7 +147,8 @@ exactly. Report when done."
 
     Save all modified components via ONE batched /api/save-components call.
 
-  ──── REWRITE pages/index.json as thin shell over Layout + section components.
+  ──── REWRITE index page as thin shell over Layout + section components
+        (POST /api/save-page, path "pages/index.json", node-tree body UNCHANGED).
 
   ──── Checkpoint (status: homepage-done, includes patchPlanMatched/Unmatched counts).
 
@@ -189,11 +195,11 @@ STEP 6 — REPORT
 
 ## Library handoff contract
 
-Sub-agents read library state from disk (the filesystem is the source of truth):
+Sub-agents read library state through the format-transparent API / a glob (the project is the source of truth):
 
-- `components/Layout.json`, `components/Header.json`, `components/Footer.json` — sub-agents reuse these, never recreate.
-- `variables.json`, `colors.json` — sub-agents read for color/typography reference. They do NOT modify these — only the coordinator (you) writes them in STEP 2.
-- `components/<Card>.json` — if you already created a card in 2f-vi (e.g. BlogCard for a homepage "Latest articles" section), the matching `site-importer-cms-group` sub-agent will find it via glob and AUGMENT its interface rather than recreate it.
+- `Layout`, `Header`, `Footer` (`src/components/Layout.astro`, `src/components/**/Header.astro`, `…/Footer.astro`) — sub-agents reuse these, never recreate. They detect presence via `Glob src/components/**/*.astro` or `GET /api/component-data`.
+- `variables.json`, `colors.json` — sub-agents read for color/typography reference. They do NOT modify these — only the coordinator (you) writes them in STEP 2. (Same files/shape in both formats.)
+- A `<Card>` component — if you already created a card in 2f-vi (e.g. BlogCard for a homepage "Latest articles" section), the matching `site-importer-cms-group` sub-agent will find it via glob (`src/components/**/BlogCard.astro`) or `GET /api/component-data/BlogCard` and AUGMENT its interface rather than recreate it.
 
 This means: don't pass library state in the Task prompt. Sub-agents glob and read on their own.
 
@@ -219,7 +225,7 @@ If the sitemap reveals a tiny site (no CMS groups, ≤5 unique pages), processin
 - **Per-page sections always factored.** ZERO props. NEVER `Hero01`/`Hero02`.
 - **Typography is a variable, not a component.**
 - **UI primitives only when the site has a system.**
-- **Always write via API routes.** Direct fs writes break the editor.
+- **Always write via API routes.** Direct fs writes break the editor (and the on-disk `.astro` is provider-managed — never hand-edit it).
 - **`category: "imported"`** on every component.
 
 ## Failure recovery

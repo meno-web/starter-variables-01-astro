@@ -1,0 +1,24 @@
+---
+import { resolveProps, style } from 'meno-astro';
+
+const __props = resolveProps(Astro, {});
+const { class: className } = __props;
+---
+<div class={style({
+    base: {
+      backgroundColor: "var(--bg)",
+      color: "var(--text)",
+      minHeight: "100vh"
+    }
+  }, __props, { root: true })}><slot /></div>
+
+
+<style is:global>
+h1 .custom-span, 
+h2 .custom-span, 
+h3 .custom-span, 
+h4 .custom-span, 
+h5 .custom-span {
+  color: var(--span);
+}
+</style>

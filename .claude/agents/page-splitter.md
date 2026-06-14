@@ -34,7 +34,7 @@ fall back to the legacy two-step `/api/page-outline` + `/api/split-page` flow
 ## Inputs
 
 - `<slug>` — the page slug (e.g. `index`, `about`). Read from
-  `pages/<slug>.json` indirectly via the API.
+  `src/pages/<slug>.astro` indirectly via the API.
 - `port-hint` — explicit integer (user passed `--port=N`) or `auto`.
 
 ## Required reading
@@ -98,6 +98,11 @@ STEP 1 — POST /api/auto-split
     }
   }
 
+  (Created components land under src/components/ on disk — typically a section
+  or imported/ folder, e.g. src/components/.../HomeHero.astro — but the API
+  reports bare component names; the payload and response are format-identical
+  to JSON projects.)
+
   4xx:
     - 400 invalid slug → halt
     - 404 page not found → halt
@@ -143,7 +148,7 @@ the same site-specific section name that wasn't matched.
 
 ## Hard rules (compact)
 
-- **One API call (auto-split).** No file reads, no globbing `components/`,
+- **One API call (auto-split).** No file reads, no globbing `src/components/`,
   no `/api/save-component(s)`. The fallback path uses two calls.
 - **Section names are server-decided.** You don't compose them. If a name
   comes back as `HomeSection<N>` you can suggest growing the dictionary, but

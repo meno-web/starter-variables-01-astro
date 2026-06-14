@@ -1,6 +1,6 @@
 ---
 name: component-extractor-section
-description: Per-section worker for /extract-components. Analyzes ONE component file (a section, chrome, or block) and returns a JSON report listing every UI-primitive cluster (Button / Badge / Input / Checkbox / Tag / IconButton / Heading / Text) and block-component cluster it found, with fingerprints, per-instance varying values, and JSON-paths to the matching nodes. NEVER writes files. NEVER calls /api/save-*. The coordinator merges across sections and is the sole writer.
+description: Per-section worker for /extract-components. Analyzes ONE component (a section, chrome, or block) and returns a JSON report listing every UI-primitive cluster (Button / Badge / Input / Checkbox / Tag / IconButton / Heading / Text) and block-component cluster it found, with fingerprints, per-instance varying values, and JSON-paths to the matching nodes. NEVER writes files. NEVER calls /api/save-*. The coordinator merges across sections and is the sole writer.
 tools: Read, Bash, Grep
 model: inherit
 effort: medium
@@ -8,7 +8,7 @@ effort: medium
 
 # Component Extractor — Section Worker
 
-You analyze ONE component file and return its candidate clusters as structured JSON. You are an analyzer, not a writer. The coordinator (`component-extractor`) merges results across sections, decides which clusters to extract, builds the new components, and rewrites the sections.
+You analyze ONE component and return its candidate clusters as structured JSON. You are an analyzer, not a writer. The coordinator (`component-extractor`) merges results across sections, decides which clusters to extract, builds the new components, and rewrites the sections.
 
 > **Non-negotiable rules:**
 >
@@ -20,8 +20,9 @@ You analyze ONE component file and return its candidate clusters as structured J
 
 The coordinator gives you in the prompt:
 - `<Name>` — the component to analyze (e.g. `HomeHero`, `Header`, `FAQItem`).
+- `<STUDIO_PORT>` — the editor server port (already resolved by the coordinator).
 
-You don't need a Studio port; the analysis is pure file reading.
+This is an astro project: the component lives as a `.astro` file you never read directly. You fetch its node-tree model from the format-transparent API instead.
 
 ## Required reading
 
@@ -35,7 +36,10 @@ You don't need a Studio port; the analysis is pure file reading.
 STEP 0 — READ
 ================================================================================
 
-  Read components/<Name>.json. If unreadable / malformed → return:
+  Fetch the component's node-tree model:
+    curl -s http://localhost:<STUDIO_PORT>/api/component-data/<Name>
+  Returns { interface, structure, ... }. If the request fails (non-200) or the
+  body is malformed JSON → return:
     { "section": "<Name>", "error": "unreadable" }
   and stop.
 
@@ -160,17 +164,17 @@ STEP 5 — RETURN JSON
 
 ## Hard rules
 
-- **Read-only.** No `/api/save-*`. No Write. No Edit. No filesystem mutation.
+- **Read-only.** No `/api/save-*`. No Write. No Edit. No filesystem mutation. The ONLY API call you make is the `GET /api/component-data/<Name>` read.
 - **No deferral.** Cover every fingerprinted node in this section. Concrete `skipped` reasons only.
 - **One JSON object** matching the schema above. Coordinator parses it programmatically — schema drift breaks the merge.
-- **Stay within ONE section.** Don't read sibling sections; the coordinator dispatches one worker per section and merges the results.
+- **Stay within ONE section.** Don't fetch sibling sections; the coordinator dispatches one worker per section and merges the results.
 - **Catalog discipline.** Primitive types come from the closed catalog in `component-extractor.md` STEP 1. Don't invent new primitive types.
 
 ## Failure modes
 
 | Symptom | Action |
 |---|---|
-| `components/<Name>.json` unreadable or malformed | Return `{ "section": "<Name>", "error": "unreadable" }` and stop |
+| `GET /api/component-data/<Name>` non-200 or body malformed | Return `{ "section": "<Name>", "error": "unreadable" }` and stop |
 | Zero clusters detected | Return the schema with empty arrays — that's a valid result |
 | Ambiguous primitive type (Button vs IconButton) | Emit as both `skipped` with `reason: "ambiguous-naming"`; coordinator decides |
 | Naming falls through to last-resort `<Purpose>Item` | Still emit; flag `skipped` only if you have NO confidence at all in the cluster's semantics |
@@ -180,5 +184,4 @@ STEP 5 — RETURN JSON
 - Save any component.
 - Rewrite the section.
 - Decide whether a cluster will actually be extracted — the coordinator merges and applies cross-section thresholds.
-- Talk to the Studio dev server — pure local file reading.
 - Spawn its own sub-agents — this is a leaf worker.

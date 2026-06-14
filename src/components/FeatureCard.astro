@@ -1,0 +1,38 @@
+---
+import { resolveProps, style } from 'meno-astro';
+
+const __props = resolveProps(Astro, {
+  text: { type: "string", default: "This is heading" },
+  description: { type: "string", default: "This is heading" }
+});
+const { text, description, class: className } = __props;
+---
+<div class={style({
+    base: { padding: "24px", backgroundColor: "var(--bg)", borderRadius: "8px" },
+    tablet: {},
+    mobile: {}
+  }, __props, { root: true })}>
+  <h3 class={style({
+      base: {
+        fontSize: "var(--hea-fs)",
+        letterSpacing: "var(--h-ls)",
+        fontWeight: "var(--h-fw)",
+        marginBottom: "var(--he-m)",
+        lineHeight: "var(--h-lh)",
+        color: "var(--text)"
+      },
+      tablet: {},
+      mobile: {}
+    }, __props)}>{text}</h3>
+  <p class={style({
+      base: {
+        fontSize: "var(--t-fs)",
+        letterSpacing: "var(--t-ls)",
+        fontWeight: "var(--t-fw)",
+        lineHeight: "var(--t-lh)",
+        color: "var(--text)"
+      },
+      tablet: {},
+      mobile: {}
+    }, __props)}>{description}</p>
+</div>

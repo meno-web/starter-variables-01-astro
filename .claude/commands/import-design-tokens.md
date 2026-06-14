@@ -111,7 +111,7 @@ You have been asked to extract typography and color tokens from a live URL and m
 
 ## What you do NOT do
 
-- You do NOT touch `pages/`, `components/`, `cms/`, `templates/`, or `images/`.
+- You do NOT touch `src/pages/`, `src/components/`, `src/content/`, or `images/`.
 - You do NOT build Layout/Header/Footer — that's `/import-homepage` / `/import-site`.
 - You do NOT trigger the section-componentization pipeline.
 - You do NOT call `/api/import-website` (which downloads assets) — token extraction reads computed styles, not stylesheets.

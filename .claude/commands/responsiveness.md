@@ -1,20 +1,20 @@
 ---
-description: For every component referenced by pages/<slug>.json (transitive closure), screenshot it at desktop/tablet/mobile widths and add tablet/mobile style overrides from a closed catalog (grid-to-stack, row-to-column, fixed-width-fluid, hero-typography-scale, stack-cta, hide-decorative, nav-hide-hamburger, horizontal-overflow-fix). Style-only — never modifies base, never writes JS. Operates in parallel: one sub-agent per component. Intended order: /split-page → /extract-components → /responsiveness → /add-interactivity.
+description: For every component referenced by src/pages/<slug>.astro (transitive closure), screenshot it at desktop/tablet/mobile widths and add tablet/mobile style overrides from a closed catalog (grid-to-stack, row-to-column, fixed-width-fluid, hero-typography-scale, stack-cta, hide-decorative, nav-hide-hamburger, horizontal-overflow-fix). Style-only — never modifies base, never writes JS. Operates in parallel: one sub-agent per component. Intended order: /split-page → /extract-components → /responsiveness → /add-interactivity.
 allowed-tools: Task, Bash, Read
 argument-hint: "<slug> [--port=N]"
 ---
 
 # /responsiveness $ARGUMENTS
 
-Walk through every component used by `pages/<slug>.json` (transitively) and add the responsive style overrides each one needs at tablet and mobile widths.
+Walk through every component used by `src/pages/<slug>.astro` (transitively) and add the responsive style overrides each one needs at tablet and mobile widths.
 
 ## What to do
 
 1. **Parse `$ARGUMENTS`.** The first token is the page slug; an optional `--port=N` token sets the Studio editor port (useful when multiple Meno projects are running and this one is on 3001/3002/...).
-   - Reject if the slug is empty, contains a slash, or ends in `.json`.
+   - Reject if the slug is empty, contains a slash, or ends in `.astro`.
    - If `--port` is present, validate it's an integer in 1024–65535.
 
-2. **Validate the page exists.** Confirm `pages/<slug>.json` is readable. If missing, stop and ask.
+2. **Validate the page exists.** Confirm `GET http://localhost:<STUDIO_PORT>/api/pages/<slug>` returns the page model (format-transparent node tree). If missing, stop and ask.
 
 3. **Delegate to the `responsiveness-coordinator` subagent** via the Task tool. The coordinator handles port detection (env var → explicit arg → `lsof` cwd-match → auto-start), sidecar checks, breakpoint config lookup, fan-out, and the final report.
 
@@ -22,7 +22,7 @@ Walk through every component used by `pages/<slug>.json` (transitively) and add 
 Task({
   description: "Responsiveness for <slug>",
   subagent_type: "responsiveness-coordinator",
-  prompt: "Process the page <slug>. Studio port hint: <port-or-auto>. Read pages/<slug>.json, list every component reference under root (transitive closure including Layout/Header/Footer), read project.config.json for breakpoint widths, fan out one responsiveness-section sub-agent per component in a single response, then report. Follow .claude/agents/responsiveness-coordinator.md exactly. Report when done."
+  prompt: "Process the page <slug>. Studio port hint: <port-or-auto>. Read the page model via GET /api/pages/<slug>, list every component reference under root (transitive closure including Layout/Header/Footer), read project.config.json for breakpoint widths, fan out one responsiveness-section sub-agent per component in a single response, then report. Follow .claude/agents/responsiveness-coordinator.md exactly. Report when done."
 })
 ```
 

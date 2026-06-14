@@ -1,6 +1,6 @@
 ---
 name: interactivity-section
-description: Per-section worker for /add-interactivity. Takes ONE component name + a page slug, screenshots its rendered DOM via the Playwright sidecar, reads its JSON, and decides which pattern from a closed catalog (mobile-nav, dropdown, tabs, accordion, modal-trigger, carousel, sticky-header, smooth-scroll, copy-to-clipboard, form) applies. If self-contained, writes data attributes into the JSON and a .js file alongside, saving both. If cross-component, applies the trigger side and returns an intent for the coordinator to wire the target.
+description: Per-section worker for /add-interactivity. Takes ONE component name + a page slug, screenshots its rendered DOM via the Playwright sidecar, fetches its node-tree model via GET /api/component-data/<Name>, and decides which pattern from a closed catalog (mobile-nav, dropdown, tabs, accordion, modal-trigger, carousel, sticky-header, smooth-scroll, copy-to-clipboard, form) applies. If self-contained, writes data attributes into the component model and a JS body (embedded as a <script> in the .astro on save), saving both. If cross-component, applies the trigger side and returns an intent for the coordinator to wire the target.
 tools: Read, Write, Edit, Bash, Grep
 model: inherit
 effort: medium
@@ -45,24 +45,31 @@ STEP 0 — SCREENSHOT
   Check HTTP status (capture with -w '%{http_code}'). On 4xx/5xx:
     - Try once more with `"selector": "[data-component-context=\"<Name>\"]"`
       (some renderers don't mark the root with data-component-root).
-    - Second failure → continue WITHOUT screenshot (use JSON-only reasoning,
-      flag this in your report as "no-screenshot").
+    - Second failure → continue WITHOUT screenshot (use node-tree-only
+      reasoning, flag this in your report as "no-screenshot").
 
   Read the file via the Read tool. The image becomes part of your context.
 
 ================================================================================
-STEP 1 — READ THE COMPONENT JSON
+STEP 1 — READ THE COMPONENT MODEL
 ================================================================================
 
-  Read components/<Name>.json. You'll need both:
+  Fetch the component's node-tree model (format-transparent — same shape
+  whether the project stores .json or .astro on disk):
+
+    GET http://localhost:<STUDIO_PORT>/api/component-data/<Name>
+
+  Returns `{ interface, structure }`. You'll need both:
     - structure (the node tree — to figure out where to attach data attributes)
-    - interface (the prop list — affects what data-props the JS receives)
+    - interface (the prop list — affects what props the JS receives)
+
+  Walk `structure` exactly as you would the node tree of a JSON component.
 
 ================================================================================
 STEP 2 — MATCH AGAINST THE PATTERN CATALOG
 ================================================================================
 
-  Walk the catalog below in order. Use BOTH the screenshot AND the JSON.
+  Walk the catalog below in order. Use BOTH the screenshot AND the model.
   The first confident match wins. If nothing matches confidently, return
   status: skipped.
 
@@ -81,7 +88,7 @@ STEP 2 — MATCH AGAINST THE PATTERN CATALOG
     - Behavior that observes/affects MULTIPLE siblings → the parent.
 
   Before applying a catalog pattern, look at where the pattern's "repeating
-  parts" come from in your JSON:
+  parts" come from in your structure:
 
     Repeating part is a raw node (<div>, <li>, ...)
       → You can apply the pattern here (you own that subtree).
@@ -118,24 +125,34 @@ STEP 3 — APPLY THE PATTERN
 ================================================================================
 
   Each pattern below specifies:
-    - JSON mods → which data-* attributes to add to which nodes
-    - JS template → what to write in components/<Name>.js
+    - JSON mods → which data-* attributes to add to which nodes in the model
+    - JS template → the JS body for the component
 
-  Apply both.
+  Apply both. In an astro project the JS body is emitted as an embedded
+  `<script>` inside the component's `.astro` file when you save it (there is
+  NO sibling `.js` on disk), and the component root + props are supplied to
+  that script via Astro `define:vars` rather than JSON's auto-injected
+  `el`/`props`. The catalog JS templates below are unchanged: they reference
+  the component root as `el` (still valid — it's provided by define:vars) and
+  select via `data-el` / `data-action`, which are preserved verbatim in the
+  astro render.
 
 ================================================================================
 STEP 4 — SAVE
 ================================================================================
 
-  Batch the updated JSON + new JS into TWO calls (both routes exist):
+  These routes are format-transparent — the payloads are IDENTICAL to the
+  JSON-format skill; the astro writer translates the model into `.astro` and
+  embeds the JS as a `<script>` under the hood. Two calls (both routes exist):
 
-  4a. Save the JSON update (one call, no batching needed for single component):
+  4a. Save the component model update (one call, no batching needed for a
+      single component):
       curl -s -X POST http://localhost:<STUDIO_PORT>/api/save-component \
         -H 'content-type: application/json' \
         -d @/tmp/sec-<Name>-payload.json
       Where payload is: { "name": "<Name>", "data": { ...updated component object... }, "category": "imported" }
 
-  4b. Save the JS file:
+  4b. Save the JS (embedded as a <script> in <Name>.astro on the astro side):
       curl -s -X POST http://localhost:<STUDIO_PORT>/api/save-component-js \
         -H 'content-type: application/json' \
         -d @/tmp/sec-<Name>-js-payload.json
@@ -167,14 +184,14 @@ STEP 5 — REPORT
 
 ### 1. mobile-nav (self-contained, lives in Header)
 
-**Recognition.** Component is `Header` or matches header semantics. Screenshot shows a desktop horizontal nav AND a hamburger icon (typically three lines or `<svg>` with classes containing `menu`/`hamburger`/`burger`). JSON usually has TWO sibling subtrees: a `<nav>`-like list of links and a separate icon button (often inside an element with class containing `mobile`, `hamburger`, `menu-toggle`).
+**Recognition.** Component is `Header` or matches header semantics. Screenshot shows a desktop horizontal nav AND a hamburger icon (typically three lines or `<svg>` with classes containing `menu`/`hamburger`/`burger`). The model usually has TWO sibling subtrees: a `<nav>`-like list of links and a separate icon button (often inside an element with class containing `mobile`, `hamburger`, `menu-toggle`).
 
 **JSON mods.**
 - Add `"data-action": "toggle-mobile-nav"` to the hamburger button node.
 - Add `"data-el": "mobile-nav-panel"` to the nav panel that should appear on mobile. If the visible-on-desktop nav doubles as the mobile panel, use that. Otherwise add a new `<nav>` sibling pre-populated from the desktop nav's links.
 - Add `"data-el": "mobile-nav-close"` to any X/close icon inside the panel if present.
 
-**JS template** (`components/Header.js`):
+**JS template** (embedded `<script>` in `Header.astro`):
 ```js
 const toggle = el.querySelector('[data-action="toggle-mobile-nav"]');
 const panel  = el.querySelector('[data-el="mobile-nav-panel"]');
@@ -195,7 +212,7 @@ Add a one-line note to the report: the `.is-open` class needs CSS to actually re
 
 ### 2. dropdown-menu (self-contained, nav item with sub-items)
 
-**Recognition.** Inside a nav block, a top-level link has child elements that look like a submenu (a hidden `<ul>` or styled panel). Visually, the screenshot won't show the open state, but the JSON shows nested link lists under a top-level item. Common class hints: `dropdown`, `submenu`, `has-children`, `chevron` icons.
+**Recognition.** Inside a nav block, a top-level link has child elements that look like a submenu (a hidden `<ul>` or styled panel). Visually, the screenshot won't show the open state, but the model shows nested link lists under a top-level item. Common class hints: `dropdown`, `submenu`, `has-children`, `chevron` icons.
 
 **JSON mods.**
 - Add `"data-action": "toggle-dropdown"` to the trigger link/button.
@@ -226,7 +243,7 @@ document.addEventListener('click', (e) => {
 
 ### 3. tabs (self-contained)
 
-**Recognition.** Screenshot shows a horizontal row of 2–6 button-like elements above (or beside) a content panel that's clearly one of several views. JSON often has a "tabs" or "tab-list" container with N buttons followed by N content blocks (or a single content block where only one is visible). Class hints: `tab`, `tab-list`, `tabs`, `panel`.
+**Recognition.** Screenshot shows a horizontal row of 2–6 button-like elements above (or beside) a content panel that's clearly one of several views. The model often has a "tabs" or "tab-list" container with N buttons followed by N content blocks (or a single content block where only one is visible). Class hints: `tab`, `tab-list`, `tabs`, `panel`.
 
 **JSON mods.**
 - Each tab button: `"data-action": "select-tab"`, `"data-tab-id": "<slug>"`. Set `"aria-selected": "true"` on the default one (first).
@@ -245,7 +262,7 @@ buttons.forEach(b => b.addEventListener('click', () => select(b.dataset.tabId)))
 
 ### 4. accordion (self-contained, common for FAQ)
 
-**Recognition.** Screenshot shows ≥3 vertically stacked rows where each row has a heading line and (typically) a chevron / plus icon. JSON shows a repeating pattern: a `<button>`-like header followed by a content block, repeated. Class hints: `accordion`, `faq`, `expand`, `collapsible`.
+**Recognition.** Screenshot shows ≥3 vertically stacked rows where each row has a heading line and (typically) a chevron / plus icon. The model shows a repeating pattern: a `<button>`-like header followed by a content block, repeated. Class hints: `accordion`, `faq`, `expand`, `collapsible`.
 
 **JSON mods.**
 - Each header button: `"data-action": "toggle-accordion"`. Set `"aria-expanded": "false"`.
@@ -303,7 +320,7 @@ triggers.forEach(t => {
 
 ### 6. carousel (self-contained)
 
-**Recognition.** Screenshot shows a horizontal row of cards/images that visibly overflows OR has prev/next arrow icons OR has dot pagination at the bottom. JSON has a single container with ≥3 children of similar shape (often a `list` node), AND arrow/dot elements nearby (in a sibling or wrapping div).
+**Recognition.** Screenshot shows a horizontal row of cards/images that visibly overflows OR has prev/next arrow icons OR has dot pagination at the bottom. The model has a single container with ≥3 children of similar shape (often a `list` node), AND arrow/dot elements nearby (in a sibling or wrapping div).
 
 **JSON mods.**
 - Track container: `"data-el": "carousel-track"`. Apply `style.base.overflowX: "auto"`, `style.base.scrollBehavior: "smooth"`, `style.base.scrollSnapType: "x mandatory"`.
@@ -426,20 +443,21 @@ Add a note to the report that the form has no backend integration (which is the 
 - **Stay in the catalog.** No new patterns. If nothing fits, skip with one-sentence reason — let the coordinator log a follow-up.
 - **Delegate to the child.** If a pattern's repeating elements are `{ type: "component" }` refs, the behavior belongs there. Return `status: delegated`, name the child, move on. Only keep behavior at the parent when it observes/affects MULTIPLE children (single-open accordion enforcement, cross-child tabs coordination, parent-level carousel scroll).
 - **Confidence over recall.** Better to skip than to apply a wrong pattern. A skipped section is a follow-up; a wrong-pattern section is broken behavior the user has to debug.
-- **Never manually add `data-component`.** Meno adds it automatically when the .js file is created. Just save the .js file via `/api/save-component-js`.
-- **No DOMContentLoaded.** Use `defineVars` (auto-enabled by the .js file's existence).
+- **Never manually add `data-component`.** Meno adds it automatically when the JS is saved. Just save the JS via `/api/save-component-js`.
+- **No DOMContentLoaded.** The component root (`el`) and props are provided to the embedded script via `define:vars` — script runs in the component scope already.
 - **No React.** This is vanilla DOM JS.
 - **Use `el.querySelector`** scoped to the component root — not `document.querySelector` — except for cross-component lookups (Modal/Drawer targets).
-- **One save per route.** `/api/save-component` for JSON, `/api/save-component-js` for JS. Don't try to bundle them.
-- **Idempotency.** If the JSON already has the data attribute you'd add, fine — just add anything missing. If a `.js` file already exists for this component, READ it first; if it already implements the pattern, return `status: skipped, reason: already-implemented`. Otherwise treat your authored JS as authoritative and overwrite.
+- **One save per route.** `/api/save-component` for the model, `/api/save-component-js` for JS. Don't try to bundle them.
+- **Idempotency.** If the model already has the data attribute you'd add, fine — just add anything missing. If the component already has interactivity JS, READ its current state (via the returned model / embedded script) first; if it already implements the pattern, return `status: skipped, reason: already-implemented`. Otherwise treat your authored JS as authoritative and overwrite.
 
 ## Failure modes
 
 | Symptom | Action |
 |---|---|
-| Screenshot 4xx with primary selector | Retry once with looser selector. Second failure → proceed JSON-only, flag as `no-screenshot` |
-| Component JSON not found | Return `status: error, reason: missing-json` |
+| Screenshot 4xx with primary selector | Retry once with looser selector. Second failure → proceed model-only, flag as `no-screenshot` |
+| `GET /api/component-data/<Name>` 404 | Return `status: error, reason: missing-component` |
 | `/api/save-component` 4xx | Read error body, fix payload, retry once. Second failure → return error |
 | `/api/save-component-js` 4xx | Same retry-once policy |
-| Existing .js conflicts with the pattern you'd write | Return `status: skipped, reason: existing-js-conflict` — let the user resolve manually |
+| Existing JS conflicts with the pattern you'd write | Return `status: skipped, reason: existing-js-conflict` — let the user resolve manually |
 | Pattern is ambiguous between two catalog entries | Skip with `reason: ambiguous-<a>-vs-<b>` — be explicit about which two |
+</content>

@@ -7,6 +7,10 @@ allowed-tools: Read, Write, Glob
 
 Create a new reusable component based on the user's description.
 
+This is an **Astro project** (meno-astro format): components are `.astro` files under
+`src/components/`, authored in the round-trippable **meno-astro dialect**. Author the
+`.astro` directly with the `Write` tool — never JSON, never a sibling `.js`.
+
 ## Usage
 
 ```
@@ -16,106 +20,198 @@ Create a new reusable component based on the user's description.
 ## Instructions
 
 1. **Understand the request**: Parse $ARGUMENTS for component requirements
-2. **Gather context**: Read existing components in `components/` for patterns
-3. **Create files**:
-   - `components/ComponentName.json` - Structure and interface
-   - `components/ComponentName.js` - Only if JavaScript behavior needed
+2. **Gather context**: Glob `src/components/**/*.astro` and read 2–3 existing components for
+   the project's dialect style (prop blocks, `style({...})` usage, color vars).
+3. **Pick the folder** and write a single `.astro` file:
+   - `src/components/ui/<Name>.astro` — primitives (Button, Card, Badge, Heading, Icon…)
+   - `src/components/form/<Name>.astro` — inputs / form controls
+   - `src/components/section/<Name>.astro` — page sections (Hero, Features, Footer…)
+   - (`Layout.astro` lives at `src/components/Layout.astro` — not a `<Folder>`.)
+   Component JS, if any, is an embedded `<script>` inside the same file — **not** a sibling.
 
 ## Key Rules
 
-### Prop Types
-Valid types: `string`, `number`, `boolean`, `select`, `link`, `file`, `rich-text`
+### Component shape
 
-```json
-{
-  "component": {
-    "interface": {
-      "title": { "type": "string", "default": "Heading" },
-      "count": { "type": "number", "default": 0 },
-      "visible": { "type": "boolean", "default": true },
-      "size": { "type": "select", "options": ["sm", "md", "lg"], "default": "md" },
-      "cta": { "type": "link", "default": { "href": "/", "target": "_self" } },
-      "avatar": { "type": "file", "accept": "image/*", "default": "" },
-      "content": { "type": "rich-text", "default": "<p>Text</p>" }
-    }
-  }
-}
+A component is frontmatter (a single authoritative `resolveProps(Astro, {...})` prop block,
+optional `__meno` meta) + body. There is **no** `{ "component": { ... } }` wrapper, no
+separate `interface`, and no `structure` — those are JSON-format concepts.
+
+```astro
+---
+import { resolveProps, style } from 'meno-astro';
+
+const { title, class: className } = resolveProps(Astro, {
+  title: { type: "string", default: "Hello" }
+});
+
+const __meno = { category: "ui" };
+---
+<div class={style({ base: { display: "flex", flexDirection: "column" } })}>
+  <h2 class={style({ base: { fontWeight: "500" } })}>{title}</h2>
+</div>
 ```
 
+- The `resolveProps(Astro, {...})` literal is **authoritative** — it's what the editor reads.
+  Declare every prop there exactly once. Always keep `class: className` in the destructure,
+  and emit the call even when there are no props
+  (`const { class: className } = resolveProps(Astro, {});`).
+- `const __meno = {...}` carries `category` (`"ui"` / `"form"` /
+  `"section"`), `acceptsStyles`, `libraries`. Omit the line entirely if it would be empty.
+
+### Prop Types
+
+Valid types: `string`, `number`, `boolean`, `select`, `link`, `file`, `rich-text`.
+Each is a field in the `resolveProps` literal:
+
+```astro
+const { title, count, visible, size, cta, avatar, content, class: className } =
+  resolveProps(Astro, {
+    title:   { type: "string", default: "Heading" },
+    count:   { type: "number", default: 0 },
+    visible: { type: "boolean", default: true },
+    size:    { type: "select", default: "md", options: ["sm", "md", "lg"] },
+    cta:     { type: "link" },
+    avatar:  { type: "file", accept: "image/*", default: "" },
+    content: { type: "rich-text", default: "<p>Text</p>" }
+  });
+```
+
+(`resolveProps` is the dialect's single source of prop truth — the deterministic serializer
+re-emits this literal with stable key order on every save, so don't hand-tune its formatting.)
+
 ### Image Props
+
 Use `file` type, **NOT** `image`:
-```json
+
+```astro
 // CORRECT
-"image": { "type": "file", "accept": "image/*", "default": "" }
+avatar: { type: "file", accept: "image/*", default: "" }
 
 // WRONG - "image" is not a valid type
-"image": { "type": "image" }
+avatar: { type: "image" }
 ```
 
 ### Reserved Names
-Never use `children` as a prop name - it's reserved for slots.
 
-### Component Structure
+Never use `children` as a prop name — slots are `<slot />` (or `<slot>fallback</slot>`).
+Pass-through content goes through the slot, not a prop.
 
-Root must be wrapped in `{ "component": { ... } }`:
+### Styles — always `style({...})`, never a raw class
 
-```json
-{
-  "component": {
-    "interface": {
-      "title": { "type": "string", "default": "Hello" }
-    },
-    "structure": {
-      "type": "node",
-      "tag": "div",
-      "children": [
-        {
-          "type": "node",
-          "tag": "h2",
-          "children": "{{title}}"
-        }
-      ]
-    }
+Styles live in `class={style({ base: {…}, tablet: {…}, mobile: {…} })}`. A raw
+`class="flex gap-3"` (Tailwind/CSS string) does **not** round-trip.
+
+```astro
+<div class={style({
+  base: { display: "flex", gap: "12px", padding: "24px" },
+  tablet: {},
+  mobile: {}
+})}>
+```
+
+- **Colors** come from `colors.json` as CSS vars: `color: "var(--text)"`,
+  `backgroundColor: "var(--bg)"`. **Tokens** from `variables.json` similarly (`"var(--b-p)"`).
+- **Prop-bound style values** use a mapping object keyed by a prop's value:
+
+  ```astro
+  backgroundColor: {
+    _mapping: true,
+    prop: "variant",
+    values: { primary: "var(--text)", secondary: "var(--bg)" }
   }
-}
+  ```
+
+### Props & templating in markup
+
+Meno templates are `{{expr}}` in the model → JSX `{expr}` in markup:
+
+```astro
+<span>{title}</span>                            // string / member
+<img src={avatar} alt={title} />                // attribute binding
+<span>{`$${item.price}`}</span>                  // mixed string → backtick
 ```
 
-### Props in Templates
-Use `{{propName}}` for interpolation:
-```json
-{ "tag": "span", "children": "{{title}}" }
-{ "tag": "img", "attributes": { "src": "{{image}}" } }
+A `rich-text` prop renders its HTML via `<Fragment set:html={content} />` (or
+`<Fragment set:html={text} />`), not as plain `{text}`.
+
+### Links
+
+A `link`-typed prop renders through the `Link` component, bound with `href(...)`:
+
+```astro
+import { href, resolveProps, style } from 'meno-astro';
+import { Link } from 'meno-astro/components';
+// …
+<Link href={href({ _mapping: true, prop: "cta" }, { cta })}>{title}</Link>
 ```
+
+For an i18n href use `href={i18n({ _i18n: true, en: "/about", pl: "/o-nas" })}`.
+
+### Conditionals & lists
+
+- Conditional render: `{visible && ( <div>…</div> )}`.
+- Prop-backed list: `{ list(items, { limit: 6 }).map((item, itemIndex) => ( … )) }`
+  (import `list` from `'meno-astro'`; loop var defaults to `item`, index is `itemIndex`).
 
 ### JavaScript Behavior
-Create a `.js` file only when needed. `el` (component root element) and `props` are auto-injected — do NOT use `export default`, do NOT use `DOMContentLoaded`:
 
-```javascript
-// components/Counter.js
-const button = el.querySelector('[data-action="increment"]');
-const countEl = el.querySelector('[data-el="count"]');
-let count = props.initialCount || 0;
+Component JS is an embedded **`<script>`** in the same `.astro` file — there is **no**
+sibling `.js`, and **no** `el`/`props` auto-injection (that's JSON-only). Use native Astro
+prop injection: `<script define:vars={{ a, b }}>` makes those props available as in-scope
+variables. A script that needs no props is `<script is:inline>`. Drive behavior off
+`data-*` attributes you put on the markup, and dispatch `CustomEvent`s for
+component-to-component communication.
 
-button?.addEventListener('click', () => {
-  count++;
-  countEl.textContent = count;
+```astro
+---
+import { resolveProps, style } from 'meno-astro';
+
+const { initialCount, class: className } = resolveProps(Astro, {
+  initialCount: { type: "number", default: 0 }
 });
+---
+<div class={style({ base: { display: "flex", gap: "8px", alignItems: "center" } })}>
+  <button type="button" data-action="increment">+</button>
+  <span data-el="count">{initialCount}</span>
+</div>
+
+<script define:vars={{ initialCount }}>
+  const el = document.currentScript.previousElementSibling;
+  const button = el.querySelector('[data-action="increment"]');
+  const countEl = el.querySelector('[data-el="count"]');
+  let count = initialCount || 0;
+
+  button?.addEventListener('click', () => {
+    count++;
+    countEl.textContent = count;
+  });
+</script>
 ```
 
-See `.claude/docs/meno/javascript.md` for the full JS pattern (data attributes, component communication, data-component auto-injection).
+`define:vars` is a native Astro attribute, **not** a `__meno` key. See
+`.claude/docs/meno/javascript.md` for the full JS pattern (data attributes, custom-event
+component communication, define:vars prop injection).
 
 ## Reference
 
-- `CLAUDE.md` — node types, interface types, styles, interactiveStyles
+- `CLAUDE.md` — the dialect (golden rules, file skeletons, CMS, status & caveats)
+- `.claude/docs/meno/meno-astro-dialect.md` — full dialect grammar & round-trip contract
+- `.claude/docs/meno/meno-astro-api.md` — the `meno-astro` package API + status
 - `.claude/docs/meno/javascript.md` — component JavaScript patterns
-- `.claude/docs/meno/cms-schema.md` — CMS collections and field types
+- the **`/meno-astro`** skill — copy-pasteable authoring cheat-sheet (incl. the CMS template
+  skeleton, for CMS-backed components)
+- `example-astro/src/**` — real generated `.astro` components to mirror
 
 ## Example
 
 User: `/build-component card with image, title, description and link`
 
 Actions:
-1. Read existing components for style patterns
-2. Create `components/Card.json` with:
-   - Interface: image (file), title (string), description (string), link (link)
-   - Structure: card layout with image, text content, and CTA
+1. Glob `src/components/**/*.astro` and read existing components for dialect style.
+2. Write `src/components/ui/Card.astro` with:
+   - `resolveProps` block: `image` (file), `title` (string), `description` (string),
+     `link` (link).
+   - Body: a `style({...})` card wrapper containing `<img src={image} />`, the text content,
+     and a `<Link href={href({ _mapping: true, prop: "link" }, { link })}>` CTA.
+   - `const __meno = { category: "ui" };`

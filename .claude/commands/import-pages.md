@@ -17,9 +17,9 @@ You have been asked to import one or more unique pages into the current Meno pro
    - Reject any non-http(s) URL with a clear message.
 
 2. **Verify the library exists.**
-   Glob `components/Layout.json`. If absent, warn:
+   Glob `src/components/Layout.astro` (or `GET http://localhost:<STUDIO_PORT>/api/component-data/Layout`). If absent, warn:
    ```
-   No component library found (components/Layout.json missing). Pages will be saved
+   No component library found (src/components/Layout.astro missing). Pages will be saved
    with passthrough roots and can be wrapped in Layout later. Run /import-site <root>
    first if you want a proper library.
    ```
@@ -35,7 +35,7 @@ You have been asked to import one or more unique pages into the current Meno pro
      description: "Import pages batch <i> of <n>",
      subagent_type: "site-importer-page",
      prompt: "Process this batch of unique pages: <list of URLs>. Library is at the
-current working directory (components/ + variables.json + colors.json). Follow
+current working directory (src/components/ + variables.json + colors.json). Follow
 .claude/agents/site-importer-page.md exactly. Reuse existing Layout/Header/Footer.
 Report when done."
    })

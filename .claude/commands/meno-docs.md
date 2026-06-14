@@ -19,42 +19,39 @@ Load Meno documentation for the specified topic to provide context for your task
 |-------|-------------|
 | `core` | Essential editing rules, node types, style objects |
 | `components` | Component interfaces, props, slots, structure |
-| `cms-schema` | CMS collections, field types, URL patterns |
-| `list` | List node iteration (prop-based and CMS) |
-| `styling` | Interactive styles, hover/focus states |
+| `meno-astro-dialect` | The `.astro` dialect grammar — page/component shape, round-tripping |
+| `meno-astro-api` | Studio dev-server API surface (format-transparent reads/writes) |
 | `javascript` | defineVars, vanilla JS, component communication |
-| `embeds` | Raw HTML/SVG content injection |
-| `localization` | Locale list for language switching |
-| `conditional` | Conditional rendering with `if` property |
 | `libraries` | External scripts and CSP configuration |
 | `redirects` | URL redirects for static hosting |
 | `meno-filter` | Client-side filtering with data attributes |
 | `meno-filter-api` | MenoFilter JavaScript API |
-| `website-convert` | Converting imported website analysis to Meno components |
-| `comments` | Reading & resolving pinned review comments via files (feedback queue) |
+| `studio-port` | Resolving the Studio editor port (non-interactive) |
+| `extract-components-catalog` | Catalog of UI primitives / block components to mine |
+| `import-site-loop` | The import pipeline loop and checkpointing |
 
 ## Instructions
 
 $ARGUMENTS contains the topic requested by the user.
 
-1. Parse the topic from $ARGUMENTS (e.g., "components", "cms-schema")
+1. Parse the topic from $ARGUMENTS (e.g., "components", "meno-astro-dialect")
 2. If no topic provided or topic is "all", list available topics
 3. Read the documentation file from `.claude/docs/meno/{topic}.md`
 4. Present the documentation content to help with the current task
 
 ### Topic Aliases
-- `cms` → `cms-schema`
+- `dialect` → `meno-astro-dialect`
+- `api` → `meno-astro-api`
 - `filter` → `meno-filter`
 - `filter-api` → `meno-filter-api`
 - `js` → `javascript`
-- `styles` → `styling`
-- `convert` → `website-convert`
-- `import` → `website-convert`
-- `comment` → `comments`
+- `port` → `studio-port`
+- `catalog` → `extract-components-catalog`
+- `import` → `import-site-loop`
 
 ### Multi-topic Loading
 If user requests multiple topics (comma-separated), load all of them:
-- `/meno-docs components,styling` → Load both components and styling docs
+- `/meno-docs components,libraries` → Load both components and libraries docs
 
 ## Example
 

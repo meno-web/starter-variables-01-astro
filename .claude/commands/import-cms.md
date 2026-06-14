@@ -29,7 +29,8 @@ You have been asked to import CMS data from a sitemap template group, independen
      subagent_type: "site-importer-cms-group",
      prompt: "Process the CMS template group `<urlPattern>` from `<url>`. Instances:
 <list of full URLs>. Follow .claude/agents/site-importer-cms-group.md exactly. Save the
-collection, card component, items, and templates/<id>.json. Report when done."
+collection, card component, items under src/content/<id>/, and the template page
+src/pages/<id>/[slug].astro. Report when done."
    })
    ```
 
@@ -44,7 +45,7 @@ collection, card component, items, and templates/<id>.json. Report when done."
    ```
 
 5. **Halt conditions:**
-   - No working component library (`components/Layout.json` absent) — warn but proceed; sub-agents handle missing library with passthrough roots.
+   - No working component library (`src/components/Layout.astro` absent) — warn but proceed; sub-agents handle missing library with passthrough roots.
    - Site root unreachable / not http(s) — stop, ask for a valid URL.
 
 ## What you do NOT do

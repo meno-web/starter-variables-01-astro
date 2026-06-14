@@ -1,6 +1,6 @@
 ---
 name: responsiveness-coordinator
-description: Coordinator agent for /responsiveness. Reads pages/<slug>.json, lists every component reference (transitive closure), ensures Studio dev server + Playwright sidecar are up, fans out one responsiveness-section worker per component in a single response, then collects their reports. Workers screenshot each component at desktop/tablet/mobile widths and add tablet/mobile style overrides from a closed catalog. No cross-component glue — each worker is self-contained.
+description: Coordinator agent for /responsiveness. Reads the page model via GET /api/pages/<slug>, lists every component reference (transitive closure), ensures Studio dev server + Playwright sidecar are up, fans out one responsiveness-section worker per component in a single response, then collects their reports. Workers screenshot each component at desktop/tablet/mobile widths and add tablet/mobile style overrides from a closed catalog. No cross-component glue — each worker is self-contained.
 tools: Task, Bash, Read, Write, Edit, Grep, Glob, TodoWrite
 model: inherit
 effort: medium
@@ -20,7 +20,7 @@ You orchestrate the responsiveness pass for one page. You do NOT analyze individ
 
 ## Inputs
 
-- `<slug>` — the page slug. Read from `pages/<slug>.json`.
+- `<slug>` — the page slug. Read the page model via `GET /api/pages/<slug>`.
 - `port-hint` — either an explicit integer (`--port=N`) or the literal string `auto`.
 - Project root = current working directory.
 
@@ -91,12 +91,14 @@ STEP 0 — RESOURCE SETUP
 STEP 1 — IDENTIFY THE COMPONENT LIST (transitive — leaves matter)
 ================================================================================
 
-  1a. Read pages/<slug>.json.
+  1a. Read the page model: GET http://localhost:<STUDIO_PORT>/api/pages/<slug>
+      (format-transparent node tree).
 
   1b. RECURSIVELY COLLECT every component name in the transitive closure:
         - Start: every component reference in root's tree.
-        - For each name discovered, read components/<Name>.json and recurse
-          into ITS structure, collecting more component refs.
+        - For each name discovered, fetch GET /api/component-data/<Name>
+          (returns the component's node-tree model: { interface, structure })
+          and recurse into ITS structure, collecting more component refs.
         - Continue until the set stops growing.
 
       Dedupe by name. Preserve first-discovered order (mostly for reports).
@@ -128,10 +130,10 @@ STEP 2 — FAN OUT (ONE RESPONSE, N PARALLEL TASKS)
 <STUDIO_PORT>. Tablet width: <TABLET>. Mobile width: <MOBILE>. Screenshot the
 component's root element at desktop (1280), tablet (<TABLET>), and mobile
 (<MOBILE>) widths from http://localhost:<STUDIO_PORT>/<slug>/ with selector
-'[data-component-context=\"<Name>\"][data-component-root=\"true\"]'. Read
-components/<Name>.json. Decide which patterns from the catalog apply.
-Apply tablet/mobile style overrides ONLY — never touch base. Save via
-/api/save-component. Follow .claude/agents/responsiveness-section.md
+'[data-component-context=\"<Name>\"][data-component-root=\"true\"]'. Read the
+component model via GET /api/component-data/<Name>. Decide which patterns from
+the catalog apply. Apply tablet/mobile style overrides ONLY — never touch base.
+Save via /api/save-component. Follow .claude/agents/responsiveness-section.md
 exactly. Report concisely when done."
   })
 
@@ -161,7 +163,7 @@ STEP 4 — REPORT
 
   Print one compact summary and stop:
 
-  ✅ Page:        pages/<slug>.json
+  ✅ Page:        src/pages/<slug>.astro
   ✅ Processed:   <N> components (parallel sub-agents, transitive closure)
   ✅ Breakpoints: tablet=<TABLET>px, mobile=<MOBILE>px
   ✅ Applied:     [<Name>: [pattern, ...], ...]
@@ -189,14 +191,14 @@ STEP 4 — REPORT
 | No Studio matches cwd AND auto-start fails | Halt; print the spawn log path |
 | Explicit `--port=N` provided but unreachable | Halt; do NOT auto-start (user said this port specifically) |
 | Sidecar can't be started | Halt; report the start-attempt error |
-| `pages/<slug>.json` missing | Halt; report path |
+| `GET /api/pages/<slug>` 404 | Halt; report the slug |
 | `project.config.json` missing or unparseable | Halt; ask user to fix it (we need breakpoints) |
 | Worker timed out | Mark that component as "skipped: worker-timeout"; continue with the rest |
 
 ## What this skill explicitly does NOT do
 
 - Restructure nodes (insert/remove DOM, change tag, reorder children). Style-only.
-- Write JS or touch existing `.js` files. Mobile-nav JS is `/add-interactivity`'s job — this skill may set up the **CSS hooks** (hide desktop nav, show hamburger button) but never wires click handlers.
+- Write JS or touch existing component JS. Mobile-nav JS is `/add-interactivity`'s job — this skill may set up the **CSS hooks** (hide desktop nav, show hamburger button) but never wires click handlers.
 - Re-extract design tokens. If a fixed pixel value should really be a variable, leave it — that's `/import-design-tokens`.
 - Re-cluster components into smaller pieces. If a section is "card-shaped" but built as raw nodes, leave it — `/extract-components` is the answer.
 - Touch base/desktop styles. The skill assumes desktop renders correctly.

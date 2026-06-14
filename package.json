@@ -1,12 +1,15 @@
 {
-  "name": "starter-variables-01-astro",
-  "version": "1.0.0",
+  "name": "starter-variables-01-astro-astro-tmp-1781344344718-v4hf95",
+  "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "meno dev",
-    "build": "meno build"
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
   },
   "dependencies": {
-    "meno-core": "^1.0.47"
+    "astro": "^6.0.0",
+    "meno-astro": "^0.1.0"
   }
 }

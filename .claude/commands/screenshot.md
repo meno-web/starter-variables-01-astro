@@ -13,7 +13,7 @@ You have been asked to screenshot a page (or a region of one) rendered by the lo
 > **Non-interactive contract.** Never ask the user mid-run — see `.claude/docs/meno/studio-port.md`. Halt with a one-line error on unrecoverable failure; never call AskUserQuestion.
 
 1. **Parse `$ARGUMENTS`.**
-   - First positional (optional): page slug. Empty / `index` / `home` → homepage. Slug `X` → `pages/X.json` → URL `/X`.
+   - First positional (optional): page slug. Empty / `index` / `home` → homepage. Slug `X` → `src/pages/X.astro` → URL `/X`.
    - Second positional (optional): component name to target — e.g. `PricingSection`, `Header`, `Hero`. The SSR renderer stamps each component instance with `data-meno-component="<Name>"` and `data-meno-component-instance="<0-based-index>"` on its outermost element, so this becomes the selector `[data-meno-component="<Name>"][data-meno-component-instance="<N>"]` (or `[data-meno-component="<Name>"]` if no `--instance` given — picks the first match).
    - `--instance=N` (optional): 0-based index when the same component appears multiple times on the page. Default `0`.
    - `--selector=<css>` (optional): raw CSS selector. Overrides the component-name path. Use for non-component targets or when you need finer control. Examples: `header`, `[data-section="pricing"]`, `main > section:nth-child(2)`.
@@ -88,6 +88,6 @@ For non-component targets (raw HTML elements, slot content), fall back to `--sel
 
 ## What you do NOT do
 
-- You do NOT touch `pages/`, `components/`, `variables.json`, `colors.json`, or any project file. This skill is read-only against the project.
+- You do NOT touch `src/pages/`, `src/components/`, `variables.json`, `colors.json`, or any project file. This skill is read-only against the project.
 - You do NOT auto-fix anything you spot in the screenshot. Report observations; the user (or a follow-up skill) acts on them.
 - You do NOT take screenshots of arbitrary external URLs — that's what `/verify-import` is for. This skill targets the local Studio render only.
