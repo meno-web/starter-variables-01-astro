@@ -10,11 +10,13 @@ effort: medium
 
 You import a single CMS template group autonomously. The "group" is a set of N URLs that share the same page structure but vary in their data (a blog, a speaker directory, a product catalog). Your job is to turn those N pages into:
 
-1. **One card component** (`<Singular>Card.json`) that renders one item
+1. **One card component** (`<Singular>Card`) that renders one item
 2. **One CMS collection** (schema + items) that holds the data
-3. **One template page** (`templates/<id>.json`) that renders the collection via the card
+3. **One template page** (the dynamic route for `<collection>`) that renders the collection via the card
 
 Everything you produce is generic — your sub-agent file is the same whether the site is a conference, a SaaS docs portal, or an e-commerce store.
+
+> **Format note (astro project).** This project stores source as `.astro`, not `.json`. The Studio dev-server API is **format-transparent**: every save / CMS payload below is the same node-tree JSON model regardless of on-disk format, and the provider layer translates to `.astro` under the hood. So payloads are UNCHANGED. Only on-disk shapes differ: the card is `src/components/**/<Singular>Card.astro`, the template page is `src/pages/<collection>/[slug].astro` (a dynamic route; schema lives in `meta.cms`), and CMS items are JSON files under `src/content/<collection>/`. You still POST the same model to `/api/save-component`, `/api/cms/collections`, `/api/cms/<id>`, `/api/save-page` — you never hand-write the `.astro`.
 
 ## Inputs
 
@@ -33,11 +35,17 @@ In both cases: your scratch dir is `rendered-websites/<host>/cms-<groupId>/` and
 ## Required reading
 
 **Now:**
-- `.claude/docs/meno/cms-schema.md` — collection + item schema
+- the `/meno-astro` skill + `.claude/docs/meno/meno-astro-dialect.md` — use the `/meno-astro` **CMS template skeleton** for the collection + template-page shape, and the dialect rules for the card. CMS field types (kept inline below).
 - `.claude/docs/meno/components.md` — card structure + interface
 
 **On demand:**
 - `.claude/docs/meno/import-site-loop.md` — full system playbook; useful for the "what does the sidecar expose" section
+
+### CMS field types (inline reference)
+
+The collection schema's `fields` use these types: `string`, `rich-text`, `image`, `link`, plus repeating string lists. There is no datetime type yet — store dates as `string` in a parseable format. Each field is `{ type, required }`. (Full schema example in STEP 4.)
+
+When rendering fields in a template/card: plain fields render as `{i18n(cms.field)}`, but a **rich-text** field renders via `<Embed html={i18n(cms.field)} />` (a `set:html` injector — a plain text interpolation of a rich-text value prints `[object Object]`).
 
 ## What you have
 
@@ -56,6 +64,7 @@ Same as the main importer; usually already running. If `/health` is dead, start 
 | Create CMS collection | `POST /api/cms/collections` |
 | Create CMS item | `POST /api/cms/{collectionId}` |
 | Save template page | `POST /api/save-page` |
+| Card library check / read | `Glob src/components/**/*.astro` or `GET /api/component-data[/<Name>]` |
 
 You do NOT call `/api/html-to-meno-fragment` on CMS instances — they're data, not pages. You do NOT call `/probe-interactions` per instance — interactions live on the card, captured from one representative.
 
@@ -100,12 +109,14 @@ STEP 2 — TWO-SAMPLE DIFF (per group)
       - Each prop gets a sensible default extracted from sample1.
 
 STEP 3 — CARD COMPONENT
-  3a. CHECK if a card already exists in components/ matching the pattern
-      (the coordinator may have created e.g. BlogCard on the homepage pass
-      if the homepage showed 3 of them in a "Latest articles" section).
+  3a. CHECK if a card already exists matching the pattern (the coordinator may
+      have created e.g. BlogCard on the homepage pass if the homepage showed 3
+      of them in a "Latest articles" section). Detect via
+      Glob src/components/**/<CardName>.astro or GET /api/component-data/<CardName>.
 
-  3b. IF EXISTS: augment its interface to include every diff-field from 2d.
-      Existing structure stays; new props get sensible defaults; preserve any
+  3b. IF EXISTS: read its node-tree model via GET /api/component-data/<CardName>,
+      then augment its interface to include every diff-field from 2d. Existing
+      structure stays; new props get sensible defaults; preserve any
       interactiveStyles.hover the coordinator already attached.
 
   3c. IF NOT: create it.
@@ -118,6 +129,7 @@ STEP 3 — CARD COMPONENT
         stay literal.
       - Category: "imported"
       - POST /api/save-component { name, data, category: "imported" }
+        (node-tree payload UNCHANGED; provider emits the .astro card.)
 
 STEP 4 — COLLECTION SCHEMA
   4a. Build the fields object from the 2d diff:
@@ -141,6 +153,8 @@ STEP 4 — COLLECTION SCHEMA
       exact pattern string the sitemap returned, never re-derive it.
 
   4b. POST /api/cms/collections { …schema }
+      (Same node-tree/schema model in both formats; the provider lands the
+       collection + dynamic route src/pages/<id>/[slug].astro on disk.)
 
 STEP 5 — BULK DATA EXTRACTION
   5a. For every URL in the group's instances list (including the 2 samples):
@@ -158,16 +172,19 @@ STEP 5 — BULK DATA EXTRACTION
 
   5b. PARALLEL BATCH the writes:
         POST /api/cms/<id> { slug, …fields } for each item, ~10 at a time.
+        (Provider writes each as src/content/<id>/<slug>.json — payload UNCHANGED.)
 
   5c. Verify count: itemsWritten == instances.length (modulo failures).
       Failures land in checkpoint as `cms.<id>.failed: [slug, …]`.
 
 STEP 6 — TEMPLATE PAGE
-  6a. Look up Layout.json in components/. If it exists, wrap the template
-      page in it. If it doesn't (standalone /import-cms run on a fresh
-      project), use a passthrough root.
+  6a. Look up Layout (Glob src/components/Layout.astro or
+      GET /api/component-data/Layout). If it exists, wrap the template page in
+      it. If it doesn't (standalone /import-cms run on a fresh project), use a
+      passthrough root.
 
-  6b. Template structure:
+  6b. Template structure (node-tree model — unchanged; the provider emits the
+      dynamic route src/pages/<id>/[slug].astro with the schema in meta.cms):
         {
           meta: { title: "{{item.name}}", slugs: {…} },
           root: {
@@ -197,6 +214,8 @@ STEP 6 — TEMPLATE PAGE
         }
 
   6c. POST /api/save-page { path: "templates/<id>.json", data }
+      (The `path` is the format-transparent template-page reference; the
+       provider emits src/pages/<id>/[slug].astro. Payload body UNCHANGED.)
 
 STEP 7 — CHECKPOINT + REPORT
   Update .claude/plans/progress/import-<host>-cms-<groupId>.md:
@@ -207,7 +226,7 @@ STEP 7 — CHECKPOINT + REPORT
     failed: [...]
 
   Print one-line report:
-    ✅ CMS group: <id> — <card> + <N> items + templates/<id>.json
+    ✅ CMS group: <id> — <card> + <N> items + <collection> template page
 ```
 
 ## Hard rules
@@ -221,6 +240,7 @@ STEP 7 — CHECKPOINT + REPORT
 - **Batched parallel writes for bulk items**, 10-20 concurrent. Larger batches risk overwhelming the file watcher.
 - **Halt on collection-create failure.** If `/api/cms/collections` fails, do not proceed to bulk writes — the items would have nowhere to land.
 - **Never delete CMS items.** If you find existing items in the collection (from a prior run), keep them — match by slug and update only.
+- **Always write via API routes.** Direct fs writes break the editor (and the on-disk `.astro` / `src/content/*.json` are provider-managed — never hand-edit them).
 
 ## Failure recovery
 
@@ -230,7 +250,7 @@ STEP 7 — CHECKPOINT + REPORT
 | `/api/cms/collections` 4xx | Read error; if "exists", that's fine; if validation error, fix fields schema and retry |
 | `/api/extract-page-content` timeout on an item | Mark slug failed, continue |
 | > 20% of items fail extraction | Halt — likely a sitewide auth wall or rate limit |
-| Layout.json missing (standalone mode) | Use passthrough root, leave a follow-up to wrap in Layout later |
+| Layout missing (standalone mode) | Use passthrough root, leave a follow-up to wrap in Layout later |
 
 ## When done
 

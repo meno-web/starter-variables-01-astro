@@ -6,19 +6,19 @@ For advanced use cases, MenoFilter exposes a JavaScript API for programmatic con
 
 | Operator | Description | Example |
 |----------|-------------|---------|
-| \`\$eq\` | Equal | \`{ status: { \$eq: 'active' } }\` |
-| \`\$neq\` | Not equal | \`{ status: { \$neq: 'draft' } }\` |
-| \`\$gt\` | Greater than | \`{ price: { \$gt: 100 } }\` |
-| \`\$gte\` | Greater than or equal | \`{ price: { \$gte: 100 } }\` |
-| \`\$lt\` | Less than | \`{ price: { \$lt: 500 } }\` |
-| \`\$lte\` | Less than or equal | \`{ price: { \$lte: 500 } }\` |
-| \`\$contains\` | String contains (case-insensitive) | \`{ title: { \$contains: 'react' } }\` |
-| \`\$notContains\` | String does not contain | \`{ title: { \$notContains: 'draft' } }\` |
-| \`\$startsWith\` | String starts with | \`{ slug: { \$startsWith: 'how-to-' } }\` |
-| \`\$endsWith\` | String ends with | \`{ filename: { \$endsWith: '.webp' } }\` |
-| \`\$in\` | Value in array | \`{ category: { \$in: ['tech', 'design'] } }\` |
-| \`\$nin\` | Value not in array | \`{ category: { \$nin: ['draft'] } }\` |
-| \`\$empty\` | Is empty/null | \`{ description: { \$empty: true } }\` |
+| \`$eq\` | Equal | \`{ status: { $eq: 'active' } }\` |
+| \`$neq\` | Not equal | \`{ status: { $neq: 'draft' } }\` |
+| \`$gt\` | Greater than | \`{ price: { $gt: 100 } }\` |
+| \`$gte\` | Greater than or equal | \`{ price: { $gte: 100 } }\` |
+| \`$lt\` | Less than | \`{ price: { $lt: 500 } }\` |
+| \`$lte\` | Less than or equal | \`{ price: { $lte: 500 } }\` |
+| \`$contains\` | String contains (case-insensitive) | \`{ title: { $contains: 'react' } }\` |
+| \`$notContains\` | String does not contain | \`{ title: { $notContains: 'draft' } }\` |
+| \`$startsWith\` | String starts with | \`{ slug: { $startsWith: 'how-to-' } }\` |
+| \`$endsWith\` | String ends with | \`{ filename: { $endsWith: '.webp' } }\` |
+| \`$in\` | Value in array | \`{ category: { $in: ['tech', 'design'] } }\` |
+| \`$nin\` | Value not in array | \`{ category: { $nin: ['draft'] } }\` |
+| \`$empty\` | Is empty/null | \`{ description: { $empty: true } }\` |
 
 ### Getting an Instance
 
@@ -34,7 +34,7 @@ const filter = MenoFilter.get('posts');
 filter.filter({ category: 'tech' });
 
 // Multiple conditions
-filter.filter({ price: { \$gt: 100, \$lte: 500 } });
+filter.filter({ price: { $gt: 100, $lte: 500 } });
 
 // Add/remove individual filters
 filter.addFilter('status', 'published');

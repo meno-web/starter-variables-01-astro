@@ -1,1 +1,6 @@
 .meno/selection.json
+# meno-astro build + deploy artifacts
+node_modules/
+dist/
+.astro/
+.wrangler/

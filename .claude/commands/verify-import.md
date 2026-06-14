@@ -13,7 +13,7 @@ You have been asked to visually compare the live website against the local Studi
 > **Non-interactive contract.** Never ask the user mid-run — see `.claude/docs/meno/studio-port.md`. Halt with a one-line error on unrecoverable failure; never call AskUserQuestion.
 
 1. **Parse `$ARGUMENTS`.**
-   - First positional arg (optional): page slug. Empty / `index` / `home` → homepage (`pages/index.json`).
+   - First positional arg (optional): page slug. Empty / `index` / `home` → homepage (`src/pages/index.astro`).
    - `--port=N` (optional): override Studio port detection. If invalid, drop and continue.
    - `--url=<live-url>` (optional): the live URL to compare against. If absent, derive it:
      - Read `.claude/plans/progress/import-*-checkpoint.md` to find the most recently imported `<host>`. The live URL is `https://<host>/<slug>` (or `https://<host>/` for the homepage).
@@ -27,7 +27,7 @@ You have been asked to visually compare the live website against the local Studi
 
 3. **Resolve the local Studio URL.**
    - Homepage → `http://localhost:<STUDIO_PORT>/`
-   - Slug `X` → `http://localhost:<STUDIO_PORT>/X` (the SSR router maps `pages/X.json` to `/X`).
+   - Slug `X` → `http://localhost:<STUDIO_PORT>/X` (the SSR router maps `src/pages/X.astro` to `/X`).
 
 4. **Fire BOTH screenshots in parallel** (one tool-call batch, not two exchanges):
 
@@ -78,10 +78,10 @@ You have been asked to visually compare the live website against the local Studi
 
 - **Mobile-vs-desktop drift suspected** — re-run with `viewport: {width: 375, height: 812}` in step 4 and write `<slug>-live-mobile.png` / `<slug>-studio-mobile.png` instead. Mention in the verdict that drift was found at one viewport but not the other.
 - **The live site requires auth** — sidecar `/screenshot` returns blank/error. Report as "❌ live site auth-gated, can't verify automatically" and stop. The user can drop a manual screenshot into `rendered-websites/<host>/verify/<slug>-live.png` and re-run.
-- **No imported page yet for the requested slug** — `pages/<slug>.json` is missing. Stop and tell the user to import it first via `/import-page <url>` or `/import-pages <url>`.
+- **No imported page yet for the requested slug** — `src/pages/<slug>.astro` is missing. Stop and tell the user to import it first via `/import-page <url>` or `/import-pages <url>`.
 
 ## What you do NOT do
 
-- You do NOT touch `pages/`, `components/`, `variables.json`, `colors.json`, or any project file.
+- You do NOT touch `src/pages/`, `src/components/`, `variables.json`, `colors.json`, or any project file.
 - You do NOT re-run `/extract`, `/analyze-page`, or any heavy import step.
 - You do NOT iterate the whole site — verify one slug per invocation. If the user wants several, they call the skill several times (or invoke it in a `/loop`).

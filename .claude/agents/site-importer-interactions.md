@@ -8,9 +8,11 @@ effort: low
 
 # Interactions Sub-Agent
 
-You convert the raw probe output into a structured patch plan that's ready to apply to components once they exist. You **never write to `components/`** — that would race with the coordinator. Your output is a single file: `rendered-websites/<host>/pages/<pageSlug>/patch-plan.json`.
+You convert the raw probe output into a structured patch plan that's ready to apply to components once they exist. You **never write components** — that would race with the coordinator. Your output is a single file: `rendered-websites/<host>/pages/<pageSlug>/patch-plan.json`.
 
 The coordinator dispatches you after step 2e (html-to-meno-fragment), in parallel with `site-importer-variables` and the coordinator's own componentization. After all three return, the coordinator joins your patch plan against the components it has just written and applies the diffs via a final batched `/api/save-components`.
+
+> **Format note (astro project).** Your input (`interactions.json`) and output (`patch-plan.json`) both live under `rendered-websites/` (scratch), which is UNCHANGED in the astro format. You never touch project files. So your whole job is format-agnostic; nothing below changes for `.astro` projects.
 
 ## Inputs
 
@@ -43,7 +45,7 @@ Schema of `interactions.json`:
 
 - `.claude/docs/meno/components.md` — specifically the `interactiveStyles` section. The diffs you emit map directly onto this schema.
 
-You do NOT need website-convert.md or cms-schema.md.
+You do NOT need any page-conversion or CMS doc.
 
 ## Context discipline
 
@@ -165,7 +167,7 @@ If a selector matches no component (e.g., the element was inside a section the c
 
 ## Hard rules
 
-- **Never write to `components/`.** Your output is one file: `patch-plan.json`. The coordinator is the only STEP 2 component writer.
+- **Never write components.** Your output is one file: `patch-plan.json`. The coordinator is the only STEP 2 component writer.
 - **Don't include large HTML in the patch plan.** `clickToOpen.revealedHtml` from the probe can be tens of KB — drop it from your output. The coordinator can re-read it from `interactions.json` if it needs the full DOM.
 - **Normalize colors to hex.** Saves the coordinator a step at join time and matches what the extractor's `colorToHex()` emits inline.
 - **Idempotent.** Re-running you with the same input produces identical output (sort entries deterministically — by selector, alphabetically).

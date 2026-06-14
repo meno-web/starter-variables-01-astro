@@ -1,0 +1,117 @@
+---
+import { resolveProps, style } from 'meno-astro';
+
+const __props = resolveProps(Astro, {
+  question: { type: "string", default: "First question" },
+  answer: {
+    type: "string",
+    default: "Short supporting description that previews how this section looks and reads in the editor"
+  }
+});
+const { question, answer, class: className } = __props;
+---
+<div class={style({
+    base: { width: "100%", borderBottom: "1px solid var(--border, #e0e0e0)" },
+    tablet: {},
+    mobile: {}
+  }, __props, { root: true })} data-faq-item="true">
+  <button class={style({
+      base: {
+        width: "100%",
+        padding: "20px 0",
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: "16px"
+      },
+      tablet: {},
+      mobile: {}
+    }, __props)} data-faq-toggle="true" type="button">
+    <h3 class={style({
+        base: {
+          fontSize: "var(--hea-fs)",
+          letterSpacing: "var(--h-ls)",
+          fontWeight: "var(--h-fw)",
+          lineHeight: "var(--h-lh)",
+          color: "var(--text)",
+          margin: "0",
+          textAlign: "left",
+          flex: "1"
+        },
+        tablet: {},
+        mobile: {}
+      }, __props)}>{question}</h3>
+    <span class={style({
+        base: {
+          fontSize: "20px",
+          transition: "transform 0.3s ease",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--text)",
+          flexShrink: 0
+        },
+        tablet: {},
+        mobile: {}
+      }, __props)} data-faq-icon="true">+</span>
+  </button>
+  <div class={style({
+      base: {
+        maxHeight: "0",
+        overflow: "hidden",
+        transition: "max-height 0.3s ease, padding 0.3s ease",
+        paddingBottom: "0"
+      },
+      tablet: {},
+      mobile: {}
+    }, __props)} data-faq-answer="true">
+    <p class={style({
+        base: {
+          fontSize: "var(--t-fs)",
+          letterSpacing: "var(--t-ls)",
+          fontWeight: "var(--t-fw)",
+          lineHeight: "var(--t-lh)",
+          color: "var(--text)",
+          maxWidth: "530px",
+          margin: "0 0 20px 0"
+        },
+        tablet: {},
+        mobile: {}
+      }, __props)}>{answer}</p>
+  </div>
+</div>
+
+
+<script define:vars={{ question, answer }}>
+(function(el, props){
+const toggle = el.querySelector('[data-faq-toggle]');
+const answerEl = el.querySelector('[data-faq-answer]');
+const icon = el.querySelector('[data-faq-icon]');
+
+if (toggle && answerEl) {
+  const updateHeight = () => {
+    if (el.getAttribute('data-expanded') === 'true') {
+      answerEl.style.maxHeight = answerEl.scrollHeight + 'px';
+      answerEl.style.paddingBottom = '20px';
+      icon.style.transform = 'rotate(45deg)';
+    } else {
+      answerEl.style.maxHeight = '0';
+      answerEl.style.paddingBottom = '0';
+      icon.style.transform = 'rotate(0deg)';
+    }
+  };
+
+  toggle.addEventListener('click', () => {
+    const isExpanded = el.getAttribute('data-expanded') === 'true';
+    el.setAttribute('data-expanded', isExpanded ? 'false' : 'true');
+    updateHeight();
+  });
+
+  window.addEventListener('resize', updateHeight);
+}
+
+})((function(){var s=document.currentScript,e=s&&s.previousElementSibling;while(e&&(e.nodeName==='STYLE'||e.nodeName==='SCRIPT'))e=e.previousElementSibling;return e||null;})(), { question, answer });
+</script>

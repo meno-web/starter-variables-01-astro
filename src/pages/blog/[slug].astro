@@ -1,0 +1,130 @@
+---
+import { getCollection } from 'astro:content';
+import { i18n, richTextWithComponents, style } from 'meno-astro';
+import { BaseLayout } from 'meno-astro/components';
+import Footer from '../../components/Footer.astro';
+import Layout from '../../components/Layout.astro';
+import Navigation from '../../components/Navigation.astro';
+import { cmsComponents } from '../../cmsComponents';
+import '../../styles/theme.css';
+
+export async function getStaticPaths() {
+  const entries = await getCollection("blog");
+  return entries.map((entry) => ({
+    params: { slug: entry.data.slug ?? entry.id },
+    props: { cms: entry.data },
+  }));
+}
+
+const { cms } = Astro.props;
+
+const meta = {
+  title: "{{cms.title}}",
+  description: "{{cms.description}}",
+  source: "cms",
+  cms: {
+    id: "blog",
+    name: "Blog",
+    slugField: "slug",
+    urlPattern: "/blog/{{slug}}",
+    fields: {
+      title: { type: "string", label: "Title", required: true },
+      slug: { type: "string", label: "URL Slug", required: true },
+      category: { type: "string", label: "Category" },
+      date: { type: "string", label: "Date" },
+      description: { type: "text", label: "Description" },
+      image: { type: "image", label: "Cover image" },
+      content: { type: "rich-text", label: "Content" }
+    }
+  }
+};
+---
+<BaseLayout meta={meta}>
+  <Layout cms={cms}>
+    <Navigation cms={cms} />
+    <section class={style({
+        base: { padding: "var(--s-p)", backgroundColor: "var(--bg)" },
+        tablet: {},
+        mobile: {}
+      })}>
+      <container class={style({
+          base: { display: "block", maxWidth: "var(--co-s)", margin: "auto" },
+          tablet: {},
+          mobile: {}
+        })}>
+        <span class={style({
+            base: {
+              display: "inline-block",
+              padding: "4px 12px",
+              backgroundColor: "var(--gray-100)",
+              borderRadius: "999px",
+              fontSize: "14px",
+              fontWeight: "500",
+              color: "var(--text)",
+              marginBottom: "16px"
+            },
+            tablet: {},
+            mobile: {}
+          })}>{i18n(cms.category)}</span>
+        <h1 class={style({
+            base: {
+              fontSize: "var(--h-fs)",
+              letterSpacing: "var(--h-ls)",
+              fontWeight: "var(--h-fw)",
+              lineHeight: "var(--h-lh)",
+              color: "var(--text)",
+              marginBottom: "var(--h-m)"
+            },
+            tablet: {},
+            mobile: {}
+          })}>{i18n(cms.title)}</h1>
+        <span class={style({
+            base: {
+              fontSize: "var(--t-fs)",
+              letterSpacing: "var(--t-ls)",
+              fontWeight: "var(--t-fw)",
+              color: "var(--muted)"
+            },
+            tablet: {},
+            mobile: {}
+          })}>{i18n(cms.date)}</span>
+        <img class={style({
+            base: {
+              width: "100%",
+              aspectRatio: "16 / 9",
+              objectFit: "cover",
+              borderRadius: "8px",
+              marginTop: "32px",
+              marginBottom: "32px"
+            },
+            tablet: {},
+            mobile: {}
+          })} src={i18n(cms.image) || undefined} alt={i18n(cms.title) || undefined} />
+        <p class={style({
+            base: {
+              fontSize: "var(--t-fs)",
+              letterSpacing: "var(--t-ls)",
+              fontWeight: "var(--t-fw)",
+              lineHeight: "var(--t-lh)",
+              color: "var(--text)"
+            },
+            tablet: {},
+            mobile: {}
+          })}>{i18n(cms.description)}</p>
+        <div class={style({
+            base: {
+              fontSize: "var(--t-fs)",
+              letterSpacing: "var(--t-ls)",
+              fontWeight: "var(--t-fw)",
+              lineHeight: "var(--t-lh)",
+              color: "var(--text)",
+              marginTop: "24px"
+            },
+            tablet: {},
+            mobile: {}
+          })}><Fragment set:html={richTextWithComponents(cms.content, cmsComponents)} /></div>
+      </container>
+    </section>
+    <Footer cms={cms} />
+  </Layout>
+</BaseLayout>

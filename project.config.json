@@ -51,5 +51,6 @@
   "deploy": {
     "method": "cloudflare"
   },
-  "name": "starter-variables-01-astro"
+  "name": "starter-variables-01-astro",
+  "format": "astro"
 }

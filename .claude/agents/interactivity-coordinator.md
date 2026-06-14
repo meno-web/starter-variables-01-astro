@@ -1,6 +1,6 @@
 ---
 name: interactivity-coordinator
-description: Coordinator agent for /add-interactivity. Reads pages/<slug>.json, lists every component reference, ensures Studio dev server + Playwright sidecar are up, fans out one interactivity-section worker per component in a single response, collects their reports, and post-processes cross-component intents (creating Modal/Drawer/Toast scaffolds if missing, wiring trigger components to dispatch CustomEvents).
+description: Coordinator agent for /add-interactivity. Reads the page model via GET /api/pages/<slug>, lists every component reference, ensures Studio dev server + Playwright sidecar are up, fans out one interactivity-section worker per component in a single response, collects their reports, and post-processes cross-component intents (creating Modal/Drawer/Toast scaffolds if missing, wiring trigger components to dispatch CustomEvents).
 tools: Task, Bash, Read, Write, Edit, Grep, Glob, TodoWrite
 model: inherit
 effort: medium
@@ -22,7 +22,7 @@ You orchestrate the interactivity pass for one page. You do NOT analyze individu
 
 ## Inputs
 
-- `<slug>` — the page slug. Read from `pages/<slug>.json`.
+- `<slug>` — the page slug. Read the page model from `GET /api/pages/<slug>`.
 - `port-hint` — either an explicit integer (user passed `--port=N`) or the literal string `auto`.
 - Project root = current working directory.
 
@@ -112,16 +112,19 @@ STEP 0 — RESOURCE SETUP
 STEP 1 — IDENTIFY THE COMPONENT LIST (transitive — leaves matter)
 ================================================================================
 
-  1a. Read pages/<slug>.json.
+  1a. Read the page model: GET http://localhost:<STUDIO_PORT>/api/pages/<slug>
+      (returns the format-transparent node tree `{ meta, root }`).
 
   1b. RECURSIVELY COLLECT every component name in the transitive closure:
         - Start: every component reference in root's tree.
-        - For each name discovered, read components/<Name>.json and recurse
-          into ITS structure, collecting more component refs.
+        - For each name discovered, fetch its model via
+          GET http://localhost:<STUDIO_PORT>/api/component-data/<Name>
+          (returns `{ interface, structure }`) and recurse into ITS
+          `structure`, collecting more component refs.
         - Continue until the set stops growing.
 
       This catches all three levels of the post-/extract-components tree:
-        - Page level:    pages/<slug>.json → Layout, HomeHero, HomeFAQ, ...
+        - Page level:    src/pages/<slug>.astro → Layout, HomeHero, HomeFAQ, ...
         - Section level: HomeHero → Button, Badge; HomeFAQ → FAQItem
         - Block level:   FAQItem (a leaf — no further refs)
 
@@ -157,10 +160,11 @@ STEP 2 — FAN OUT (ONE RESPONSE, N PARALLEL TASKS)
     prompt: "Analyze component <Name> as used on page <slug>. Studio port:
 <STUDIO_PORT>. Take a screenshot from http://localhost:<STUDIO_PORT>/<slug>/
 with selector '[data-component-context=\"<Name>\"][data-component-root=\"true\"]'.
-Read components/<Name>.json. Decide which pattern from the catalog applies.
-If self-contained, apply it (add data attributes + write JS + save both).
-If cross-component, apply the trigger side and emit an intent. Follow
-.claude/agents/interactivity-section.md exactly. Report concisely when done."
+Fetch the component model via GET /api/component-data/<Name>. Decide which
+pattern from the catalog applies. If self-contained, apply it (add data
+attributes + write JS + save both). If cross-component, apply the trigger
+side and emit an intent. Follow .claude/agents/interactivity-section.md
+exactly. Report concisely when done."
   })
 
   Tasks run concurrently. Wait for ALL of them to return.
@@ -194,15 +198,24 @@ STEP 4 — CROSS-COMPONENT WIRING (post-pass)
 
   For each target name in intents:
 
-  4a. Check if components/<Target>.json already exists.
-        Yes → READ it. Continue to 4b without rebuilding.
-        No  → build a minimal scaffold using the templates below. Save via
+  4a. Check if the target component already exists:
+        GET http://localhost:<STUDIO_PORT>/api/component-data/<Target>
+        2xx → it exists. READ the returned model. Continue to 4b without
+              rebuilding.
+        404 → build a minimal scaffold using the templates below. Save via
               POST /api/save-components (batched if you have multiple new
               targets — Modal + Drawer in one call).
 
-  4b. Build the target's .js file. It listens for every event from the
+  4b. Build the target's component JS. It listens for every event from the
       intents map and toggles the appropriate visibility / classList.
-      Write via POST /api/save-component-js.
+      Write via POST /api/save-component-js. In an astro project this JS is
+      emitted as an embedded `<script>` inside the target's `.astro` file
+      (NOT a sibling `.js` on disk) — the route accepts the same JS body and
+      the writer embeds it. The component root + props are provided to the
+      script via Astro `define:vars` rather than JSON's auto-injected
+      `el`/`props`; the scaffold JS below still references the root the same
+      way (`el`), and data-attribute selectors (`data-el`, `data-action`,
+      `data-component-context`) are preserved verbatim in the astro render.
 
   4c. Verify the trigger side: each trigger's component already has the
       dispatch code (the worker wrote it). If the target previously didn't
@@ -213,8 +226,13 @@ STEP 4 — CROSS-COMPONENT WIRING (post-pass)
 
   ── Scaffolds ───────────────────────────────────────────────────────────
 
+  >>> The save PAYLOADS below are format-transparent — the node-tree JSON
+      and JS strings are IDENTICAL to the JSON-format skill. The astro
+      writer translates them into `.astro` + embedded `<script>` under the
+      hood. Do NOT hand-author `.astro` here.
+
   Modal (cross-component target):
-    components/Modal.json:
+    /api/save-components data for Modal:
     {
       "interface": {},
       "structure": {
@@ -262,7 +280,8 @@ STEP 4 — CROSS-COMPONENT WIRING (post-pass)
       "category": "imported"
     }
 
-    components/Modal.js:
+    Modal JS (saved via /api/save-component-js → embedded <script> in
+    Modal.astro; `el` = the component root supplied via define:vars):
     const root = el;
     const panel = el.querySelector('[data-el="modal-panel"]');
     const close = el.querySelector('[data-action="close-modal"]');
@@ -299,7 +318,7 @@ STEP 5 — REPORT
 
   Print one compact summary and stop:
 
-  ✅ Page:        pages/<slug>.json
+  ✅ Page:        src/pages/<slug>.astro
   ✅ Processed:   <N> components (parallel sub-agents, transitive closure)
   ✅ Applied:     [<Name>: <pattern>, ...]              ← behavior added at the right level
   ✅ Delegated:   [<Parent>: <pattern> -> <Child>, ...] ← parent skipped; child got the behavior
@@ -317,7 +336,7 @@ STEP 5 — REPORT
 
 - **One response for all worker Tasks.** Never dispatch them serially.
 - **Workers handle self-contained patterns end-to-end.** You only do the cross-component glue afterward.
-- **Never overwrite an existing target component** (Modal, Drawer, etc.). If one is present, augment its `.js` to listen for the new event — don't replace the `.json`.
+- **Never overwrite an existing target component** (Modal, Drawer, etc.). If one is present, augment its JS to listen for the new event — don't replace its structure.
 - **Cross-component creation is batched.** If multiple new targets are needed, ONE `/api/save-components` call.
 - **Follow Meno's JS rules** (`.claude/docs/meno/javascript.md`): no DOMContentLoaded, no manual `data-component` attribute, use `data-el` / `data-action` for selectors.
 
@@ -330,7 +349,7 @@ STEP 5 — REPORT
 | Explicit `--port=N` provided but unreachable | Halt; do NOT auto-start (user said this port specifically) |
 | Studio dev server unreachable after detection | Halt; ask user to start the dev server or pass `--port=N` |
 | Sidecar can't be started | Halt; report the start-attempt error |
-| `pages/<slug>.json` missing | Halt; report path |
+| `GET /api/pages/<slug>` 404 (page missing) | Halt; report path `src/pages/<slug>.astro` |
 | Worker timed out | Mark that component as "skipped: worker-timeout"; continue with the rest |
 | `/api/save-components` 4xx in STEP 4 | Read error, fix payload, retry once. Second failure → log target as TodoWrite follow-up; continue |
 | Intent references unknown target type | Log as follow-up; do NOT invent a scaffold beyond the four known types |
@@ -341,3 +360,4 @@ STEP 5 — REPORT
 - Add styling. Hover/focus styles belong to `interactiveStyles` (already covered by the import pipeline) — this skill only adds JS-driven behavior.
 - Network calls inside generated JS. Form-submit handlers wire up validation + state, but don't `fetch()` anything. That's the user's choice.
 - Touch CMS-driven `list` nodes. Filtering UI is a separate concern — flag it as a follow-up.
+</content>

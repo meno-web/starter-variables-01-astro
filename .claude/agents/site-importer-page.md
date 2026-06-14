@@ -10,9 +10,11 @@ effort: medium
 
 You import a batch of unique pages into a Meno project that already has a working component library. Your contract:
 
-- **You DO NOT create** `Layout.json`, `Header.json`, `Footer.json`, brand variables, or colors. They exist.
-- **You DO create** per-page section components (`<SlugPascal><SectionPurposePascal>`) and the thin page JSON that references Layout.
-- **You read the library state from disk** — glob `components/*.json` to know what already exists.
+- **You DO NOT create** Layout, Header, Footer, brand variables, or colors. They exist.
+- **You DO create** per-page section components (`<SlugPascal><SectionPurposePascal>`) and the thin page that references Layout.
+- **You read the library state through the format-transparent API / a glob** — `Glob src/components/**/*.astro` (filename stem = component name) or `GET /api/component-data` (list) to know what already exists.
+
+> **Format note (astro project).** This project stores source as `.astro`, not `.json`. The Studio dev-server API is **format-transparent**: every save payload below is the same node-tree JSON model regardless of on-disk format, and the provider layer emits `.astro` under the hood. So payloads are UNCHANGED — you never hand-write project files. Only *disk reads/globs* change: a page is `src/pages/<slug>.astro`, a component is `src/components/**/<Name>.astro` (`Layout.astro` at `src/components/Layout.astro`).
 
 ## Inputs
 
@@ -20,7 +22,7 @@ Either of two invocation shapes:
 
 **Standalone (`/import-pages <url1> [url2 …]`):**
 - Each URL is a unique page to import.
-- Library is assumed to exist; you warn (don't halt) if `components/Layout.json` is missing.
+- Library is assumed to exist; you warn (don't halt) if no `Layout` is present (no `src/components/Layout.astro` and `GET /api/component-data/Layout` 404s).
 
 **Fan-out (from coordinator):**
 - `{ urls: [url, …], host, libraryReady: true }`
@@ -32,7 +34,7 @@ Checkpoint: `.claude/plans/progress/import-<host>-pages-<batchId>.md`.
 ## Required reading
 
 **Now:**
-- `.claude/docs/meno/website-convert.md` — section→component recipes
+- the `/meno-astro` skill + `.claude/docs/meno/meno-astro-dialect.md` — section→component patterns + dialect rules
 - `.claude/docs/meno/core.md` — page/node shape
 
 **On demand:**
@@ -49,6 +51,7 @@ Checkpoint: `.claude/plans/progress/import-<host>-pages-<batchId>.md`.
 | HTML → Meno tree | `POST /api/html-to-meno-fragment` |
 | Save page | `POST /api/save-page` |
 | Save components (batched) | `POST /api/save-components` ← prefer over save-component |
+| Library check / read | `Glob src/components/**/*.astro` or `GET /api/component-data[/<Name>]` |
 
 You do NOT call `/probe-interactions` on these pages by default — interactions live on Layout/Header (from the homepage pass) or on UI primitives. Only probe if a page has a brand-new interactive pattern the homepage didn't expose.
 
@@ -57,12 +60,13 @@ You do NOT call `/probe-interactions` on these pages by default — interactions
 ```
 STEP 0 — SETUP (fast)
   0a. Verify component library exists:
-        - components/Layout.json present? If no AND standalone mode, warn:
+        - Layout present? (Glob src/components/Layout.astro, or
+          GET /api/component-data/Layout.) If no AND standalone mode, warn:
           "No Layout found — pages will be saved with passthrough roots. Run
           /import-site first to build the library." Continue anyway.
-        - Note which components exist (glob components/*.json names)
-        - Read variables.json + colors.json (just to confirm presence, you
-          won't modify them).
+        - Note which components exist (Glob src/components/**/*.astro — the
+          filename stem is the component name; or GET /api/component-data list).
+        - Confirm variables.json + colors.json presence (you won't modify them).
   0b. Read existing checkpoint; identify already-saved slugs to skip.
 
 STEP 1 — PER PAGE (loop with per-page time budget)
@@ -98,8 +102,10 @@ STEP 1 — PER PAGE (loop with per-page time budget)
             }
           }
         }
+        (The `path` + payload are the format-transparent node-tree model; the
+         provider emits src/pages/<slug>.astro on disk. Body UNCHANGED.)
         If Layout doesn't exist: use { type: "node", tag: "div", children: [...] }.
-        The user can preview pages/<slug>.json NOW.
+        The user can preview the page NOW.
 
     1f. CARVE SECTIONS from analysis.json.sections[]:
         For each section[i] that is NOT header/footer (those live in Layout):
@@ -127,7 +133,7 @@ STEP 1 — PER PAGE (loop with per-page time budget)
         batch — the page can still be saved referencing whichever section
         components succeeded.
 
-    1h. REWRITE pages/<slug>.json as the final thin shell:
+    1h. REWRITE the page as the final thin shell:
           {
             meta: { …same… },
             root: {
@@ -139,7 +145,7 @@ STEP 1 — PER PAGE (loop with per-page time budget)
               ]
             }
           }
-        POST /api/save-page.
+        POST /api/save-page { path: "pages/<slug>.json", data }.
 
     1i. CHECKPOINT IMMEDIATELY (per-page, not per-batch).
         Update the batch checkpoint file with this slug's status.
@@ -161,7 +167,7 @@ STEP 2 — BATCH REPORT
 
 - **Context discipline.** Every large API response goes to disk via `curl -o`, never into your tool-call output. Inspect with `jq`, never `cat`. Pass data between calls via `--data @file.json`. Full rules in `import-site-loop.md` → "Context discipline". A batch of 5 pages with naive `cat`-and-capture will exhaust your context before page 3.
 - **Never create Layout/Header/Footer.** They exist (or this batch's caller didn't run /import-site first; either way it's not your job).
-- **Read the library, don't reinvent.** Glob `components/*.json` once at STEP 0; check for naming collisions when proposing new section components.
+- **Read the library, don't reinvent.** Glob `src/components/**/*.astro` (or `GET /api/component-data`) once at STEP 0; check for naming collisions when proposing new section components.
 - **Progressive shell first, refine after.** STEP 1e saves something usable in ~30s per page; STEP 1h refines it. STOPPING after 1e (mid-batch) is acceptable.
 - **Batched section saves via `/api/save-components`** — one round-trip per page, not N.
 - **Per-page checkpoint.** Resume must be per-page-granular.
@@ -169,13 +175,14 @@ STEP 2 — BATCH REPORT
 - **No `/probe-interactions` by default.** Only if the page has a clearly-new interactive pattern.
 - **No CMS detection here.** If you see a page that looks like a CMS template, leave it alone — that's `site-importer-cms-group`'s job. You handle UNIQUE pages only.
 - **Slug-prefixed section names always.** `AboutHero` not `Hero`. `PricingTable` not `Table`. This prevents name collisions across sub-agents running in parallel.
+- **Always write via API routes.** Direct fs writes break the editor (and the on-disk `.astro` is provider-managed — never hand-edit it).
 - **`category: "imported"`** on every component you create.
 
 ## Failure recovery
 
 | Symptom | Action |
 |---|---|
-| Layout.json missing (standalone) | Warn; save pages with passthrough root; flag follow-up |
+| Layout missing (standalone) | Warn; save pages with passthrough root; flag follow-up |
 | `/extract` 30s timeout | Retry once with 40s+20s budget; second fail → skip |
 | `/api/save-page` 4xx | Re-read error; fix payload; retry once |
 | `/api/import-page` timeout | Skip asset download; mark follow-up; continue |

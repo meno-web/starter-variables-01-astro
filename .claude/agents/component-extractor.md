@@ -13,8 +13,8 @@ You analyze ALL section components used by one page, find repeating patterns acr
 > **Non-negotiable rules:**
 >
 > 1. **Never break a page.** Every replacement must be a structurally valid swap. If you can't confidently rewrite a subtree as a clean component ref, skip the cluster.
-> 2. **Never write or modify JS.** If a section has a `.js` file, leave it alone. JS placement is `/add-interactivity`'s job (which is component-tree-aware after this skill runs).
-> 3. **Never overwrite existing components.** If `Button.json` exists, augment its interface if needed but don't replace its structure.
+> 2. **Never write or modify JS.** If a component carries interactivity JS, leave it alone. JS placement is `/add-interactivity`'s job (which is component-tree-aware after this skill runs).
+> 3. **Never overwrite existing components.** If `Button` exists (`GET /api/component-data/Button` returns 200), augment its interface if needed but don't replace its structure.
 > 4. **No deferral. No follow-up passes. No "context budget" excuses.** A successful run MUST cover every section in `refSet` for both UI primitives AND block components in a SINGLE invocation. "I'll cover the rest in a follow-up" / "deferring to a next pass" / "context running low" are NOT acceptable outcomes — they're failure modes. If the page is too big for one context, you fan out (see STEP 0e), you do not punt. The ONLY valid per-cluster skip reasons are concrete and named: `validation-failed`, `no-semantic-name`, `existing-component-conflict`, `cluster-below-threshold`. Anything else is the bug.
 
 ## Inputs
@@ -26,11 +26,13 @@ You analyze ALL section components used by one page, find repeating patterns acr
 
 - This file.
 - `.claude/docs/meno/studio-port.md` — Studio port detection + non-interactive contract. Load BEFORE STEP 0.
-- `.claude/docs/meno/website-convert.md` — prop conventions, list nodes, common pitfalls.
+- The `/meno-astro` skill + `.claude/docs/meno/meno-astro-dialect.md` — node-tree model, prop conventions, list nodes, common pitfalls.
 - `.claude/docs/meno/components.md` — component shape.
 - `.claude/docs/meno/extract-components-catalog.md` — UI primitive + block component catalogs, naming rules, interface-inference rules. Load BEFORE STEP 1.
 
 Lazy-load `components.md` + `extract-components-catalog.md` before STEP 1 if you haven't.
+
+> **Format note.** This is an astro project: pages and components live as `.astro` files, not `.json`. You never read those `.astro` files directly. The Studio dev-server API is **format-transparent** — it returns the SAME node-tree model (`{ type:"node"|"component", ... }`, `interface`, `structure`, `meta`, `root`) regardless of on-disk format. Every read below goes through the API; every save payload is the unchanged node-tree JSON model.
 
 ## The loop
 
@@ -51,27 +53,39 @@ STEP 0 — SETUP & READ
         case "$probe" in "200 application/json"*) ;; *) halt ;; esac
       Halt → one-line error message from studio-port.md. Do NOT ask the user.
 
-  0b. Read pages/<slug>.json.
+  0b. Read the page node tree:
+        GET http://localhost:<STUDIO_PORT>/api/pages/<slug>
+      Returns the page model { meta, root }. Walk `root` as the structure tree.
 
   0c. RESOLVE TRANSITIVE COMPONENTS.
       Starting from root, walk every node of type:"component". For each name,
-      read components/<Name>.json. Recurse into that component's structure,
-      collecting more component refs. Build a set: refSet = { all component
-      names referenced from this page, including Layout/Header/Footer chrome }.
-      Read each one's JSON. Cache them all in working memory.
+      fetch GET http://localhost:<STUDIO_PORT>/api/component-data/<Name>
+      (returns that component's node-tree model { interface, structure, ... }).
+      Recurse into that component's structure, collecting more component refs.
+      Build a set: refSet = { all component names referenced from this page,
+      including Layout/Header/Footer chrome }. Fetch each one's component-data.
+      Cache them all in working memory.
 
-  0d. EXISTING-COMPONENTS GLOB.
-      List components/ to find what's already global. Cache file names.
+  0d. EXISTING-COMPONENTS LIST.
+      GET http://localhost:<STUDIO_PORT>/api/component-data (library list) — or
+      glob src/components/**/*.astro (filename stem = component name) — to find
+      what's already global. A component "exists" iff
+      GET /api/component-data/<Name> returns 200. Cache the names.
       Existing components are reused — never rebuilt from scratch.
 
   0e. SIZE CHECK + MANDATORY FAN-OUT for large pages.
 
-      Compute, after the reads in 0c/0d:
-        - totalLines     = sum of `wc -l components/<X>.json` for every X in refSet
-        - maxSectionLines = max of `wc -l components/<X>.json` across refSet
-        - sectionCount   = number of refSet entries that are NOT chrome
-                           (Layout, Header, Footer, Modal, Drawer, Toast,
-                            Lightbox excluded from the count)
+      There are no on-disk `.json` files to `wc -l` in an astro project, so
+      estimate size from the component-data JSON you already fetched in 0c.
+      Compute, after the reads in 0c/0d (per refSet entry X, let
+      jsonBytes(X) = byte length of its /api/component-data/<X> response body):
+        - totalLines      = sum over refSet of (jsonBytes(X) / 40)  ← ~40 bytes/line
+        - maxSectionLines  = max over refSet of (jsonBytes(X) / 40)
+        - sectionCount    = number of refSet entries that are NOT chrome
+                            (Layout, Header, Footer, Modal, Drawer, Toast,
+                             Lightbox excluded from the count)
+      (Equivalently: node count of each structure tree — either proxy is fine;
+      the intent is to skip oversized fan-outs, not to count disk lines.)
 
       If ANY of the following is true, fan-out is MANDATORY:
         - totalLines      > 4000
@@ -88,7 +102,8 @@ STEP 0 — SETUP & READ
         Task({
           description: "Analyze <Name> for clusters",
           subagent_type: "component-extractor-section",
-          prompt: "Analyze components/<Name>.json for UI primitive clusters
+          prompt: "Analyze component <Name> (GET /api/component-data/<Name>,
+Studio port <STUDIO_PORT>) for UI primitive clusters
 (Button, Badge, Input, Checkbox, Tag, IconButton, Heading, Text) and block
 component clusters (≥2 instances of the same shape). Return ONLY a JSON
 report — do NOT call any /api/save-* endpoint, do NOT write files. Schema:
@@ -125,8 +140,8 @@ Follow .claude/agents/component-extractor-section.md exactly. Report concisely."
 
       You are the SOLE writer. Sub-agents never call /api/save-components.
       Skip them with TaskCreate only if a section worker reports a hard
-      error (file unreadable, malformed JSON) — every other section MUST
-      be covered.
+      error (component-data unreachable, malformed JSON) — every other
+      section MUST be covered.
 
 ================================================================================
 STEP 1 — DETECT UI PRIMITIVES (closed catalog)
@@ -151,7 +166,7 @@ STEP 3 — INFER INTERFACES (per cluster)
 
   See `.claude/docs/meno/extract-components-catalog.md` → "Interface inference".
   Diff text/image/href leaves at the same path across instances; differ → prop,
-  identical → bake. camelCase prop names per website-convert.md.
+  identical → bake. camelCase prop names per the /meno-astro dialect conventions.
 
 ================================================================================
 STEP 4 — BUILD NEW COMPONENTS
@@ -175,7 +190,7 @@ STEP 4 — BUILD NEW COMPONENTS
       keys. Any mismatch → fix.
 
   4c. Idempotency: if a component with the same name + same content already
-      exists → skip; reuse.
+      exists (GET /api/component-data/<Name> → 200) → skip; reuse.
 
   4d. Collect ALL new components into one array.
 
@@ -183,7 +198,8 @@ STEP 4 — BUILD NEW COMPONENTS
       curl -s -X POST http://localhost:<STUDIO_PORT>/api/save-components \
         -H 'content-type: application/json' \
         -d @/tmp/extract-new-components.json
-      Where the body is { "components": [...] }.
+      Where the body is { "components": [...] }. The payload is the unchanged
+      node-tree model; the provider emits the `.astro` files under the hood.
 
       One HMR cycle. If 4xx → read error, fix payload, retry once.
       Second failure → halt; don't proceed to rewriting sections.
@@ -221,8 +237,8 @@ STEP 5 — REWRITE SECTIONS TO USE THE NEW COMPONENTS
         }
 
   5e. VALIDATE the new section:
-        - every component ref names a file that exists (newly-saved OR
-          pre-existing).
+        - every component ref names a component that exists (newly-saved OR
+          pre-existing, per GET /api/component-data/<Name>).
         - every {{prop}} reference in section's interface is still consumed
           (no orphans).
       Bad → revert this section's edits; log as 'skipped: validation-failed'.
@@ -240,12 +256,12 @@ STEP 6 — REPORT
 
   Print this compact summary and stop:
 
-  ✅ Page:           pages/<slug>.json
+  ✅ Page:           src/pages/<slug>.astro
   ✅ Scanned:        <N> components (sections + chrome, transitively)
   ✅ Fan-out:        <yes — N parallel workers | no — small page, inline>
   ✅ UI primitives:  [Button: <k>, Badge: <k>, Heading: <k>, Text: <k>, ...]
   ✅ Blocks:         [FAQItem: <k>, PricingTier: <k>, TeamMember: <k>, ...]
-  ✅ Created:        <K> new components
+  ✅ Created:        <K> new components (src/components/.../<Name>.astro)
   ✅ Reused:         <R> existing components
   ✅ Rewrote:        <S> sections to reference new components
   ⏭  Skipped:       [<cluster>: <one of: validation-failed |
@@ -276,9 +292,9 @@ STEP 6 — REPORT
 - **Block components are globally named.** No section prefix. Numeric suffix on collision. Naming priority: aria-role → class hint → tag → content shape → section-context fallback → last-resort `<Purpose>Item`.
 - **Confidence thresholds.** UI primitive cluster ≥3 instances. Block cluster ≥2 instances. Below threshold → leave inline.
 - **Two batched saves, in order.** STEP 4 saves all new components first (so STEP 5's refs resolve), then STEP 5 saves all updated sections.
-- **Never overwrite existing components.** Augment interface if a prop is missing, but don't replace structure of a pre-existing file.
-- **Never modify JS.** Section .js files stay put. If you'd want to migrate JS, log it as a follow-up.
-- **Validate before saving.** Every {{prop}} in structure must be in interface. Every component ref in section must point to a known file.
+- **Never overwrite existing components.** Augment interface if a prop is missing, but don't replace structure of a pre-existing component.
+- **Never modify JS.** Component interactivity JS stays put. If you'd want to migrate JS, log it as a follow-up.
+- **Validate before saving.** Every {{prop}} in structure must be in interface. Every component ref in a section must point to a known component.
 - **`category: "imported"`** on every new component.
 - **One invocation = full job.** Cover every section in refSet. Fan out via STEP 0e when the page is large; never defer. See non-negotiable rule #4 at the top of this file.
 
@@ -287,7 +303,7 @@ STEP 6 — REPORT
 | Symptom | Action |
 |---|---|
 | Studio dev server unreachable after all 5 detection steps | Halt with the one-line error from studio-port.md. Do NOT ask the user — the message is the report. |
-| `pages/<slug>.json` missing | Halt; report path |
+| `GET /api/pages/<slug>` 404 (page missing) | Halt; report slug |
 | No clusters meet thresholds | Report "no patterns found"; exit cleanly |
 | `/api/save-components` 4xx in STEP 4 | Read error, fix, retry once. Second failure → halt; no section rewrite |
 | `/api/save-components` 4xx in STEP 5 | Read error, fix, retry once. Second failure → halt; new components are saved but sections not patched. Report state so user can re-run |
@@ -296,7 +312,7 @@ STEP 6 — REPORT
 
 ## What this skill explicitly does NOT do
 
-- Write or modify any `.js` files — JS placement is `/add-interactivity`'s job.
+- Write or modify any JS — JS placement is `/add-interactivity`'s job.
 - Detect cross-page repetition. Scope is one page's transitive component graph at a time. Cross-page deduplication is a future skill.
 - Refactor existing global components. Reuses them as-is.
 - Split a block into smaller blocks (e.g. PricingTier → PricingTier + FeatureList). One level of factoring per run.

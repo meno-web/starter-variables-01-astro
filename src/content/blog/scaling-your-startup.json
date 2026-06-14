@@ -1,0 +1,29 @@
+{
+  "_id": "blg002",
+  "_filename": "scaling-your-startup",
+  "_createdAt": "2025-01-05T10:00:00Z",
+  "title": "Scaling Your Startup: Lessons Learned",
+  "slug": "scaling-your-startup",
+  "category": "Business",
+  "date": "Jan 5, 2025",
+  "description": "Key insights and strategies for growing your startup from seed to series A.",
+  "image": "/images/placeholder-img.webp",
+  "content": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "textAlign": null
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Modern web development combines fast tooling, component-driven design, and clear data flow."
+          }
+        ]
+      }
+    ]
+  },
+  "_url": "/blog/scaling-your-startup"
+}

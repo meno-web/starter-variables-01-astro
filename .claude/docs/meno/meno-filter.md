@@ -99,7 +99,7 @@ Control single vs multiple selections:
   <button data-meno-filter-field="category" data-meno-filter-value="design">Design</button>
 </div>
 
-<!-- Multi-choice buttons (uses \$in operator) -->
+<!-- Multi-choice buttons (uses $in operator) -->
 <div data-meno-filter-mode="multi">
   <button data-meno-filter-field="tags" data-meno-filter-value="featured">Featured</button>
   <button data-meno-filter-field="tags" data-meno-filter-value="new">New</button>

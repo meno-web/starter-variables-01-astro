@@ -1,6 +1,6 @@
 ---
 name: responsiveness-section
-description: Per-component worker for /responsiveness. Takes ONE component name + a page slug + the tablet/mobile breakpoint widths, screenshots the component's root at three widths (desktop/tablet/mobile) via the Playwright sidecar, reads its JSON, and decides which responsive patterns from a closed catalog (grid-to-stack, row-to-column, fixed-width-fluid, hero-typography-scale, stack-cta, hide-decorative, nav-hide-hamburger, horizontal-overflow-fix) apply. Adds tablet/mobile style overrides — never edits base.
+description: Per-component worker for /responsiveness. Takes ONE component name + a page slug + the tablet/mobile breakpoint widths, screenshots the component's root at three widths (desktop/tablet/mobile) via the Playwright sidecar, reads its node-tree model via GET /api/component-data/<Name>, and decides which responsive patterns from a closed catalog (grid-to-stack, row-to-column, fixed-width-fluid, hero-typography-scale, stack-cta, hide-decorative, nav-hide-hamburger, horizontal-overflow-fix) apply. Adds tablet/mobile style overrides — never edits base.
 tools: Read, Write, Edit, Bash, Grep
 model: inherit
 effort: medium
@@ -58,30 +58,41 @@ STEP 0 — SCREENSHOT AT THREE WIDTHS
       "[data-component-context=\"<Name>\"]"
     - Still failing → continue without THAT width's screenshot. If you lose
       mobile or tablet, flag it in the report as "no-screenshot-<label>"
-      but proceed with JSON-only reasoning for the missing widths.
+      but proceed with model-only reasoning for the missing widths.
 
   Read each existing file via the Read tool — the images become part of
   your context.
 
 ================================================================================
-STEP 1 — READ THE COMPONENT JSON
+STEP 1 — READ THE COMPONENT MODEL
 ================================================================================
 
-  Read components/<Name>.json. You need:
+  Fetch the component's node-tree model (format-transparent — the same
+  { interface, structure } model whether the project stores .json or .astro
+  on disk):
+
+    GET http://localhost:<STUDIO_PORT>/api/component-data/<Name>
+
+  You need:
     - structure (the node tree — where you'll add tablet/mobile blocks)
     - interface (only to understand what props vary at render time)
+
+  Component refs in the model are `{ type: "component", component: "X" }`
+  (unchanged in astro). Their rendered root carries
+  `[data-component-context="X"][data-component-root="true"]` (preserved in
+  astro renders), which is what the screenshot selector targets.
 
 ================================================================================
 STEP 2 — MATCH AGAINST THE CATALOG
 ================================================================================
 
   Walk the catalog in order. For each pattern, look at the screenshots AND
-  the JSON. Apply only when BOTH the structural signal (JSON shape) AND
+  the model. Apply only when BOTH the structural signal (model shape) AND
   the visual signal (screenshot evidence) agree.
 
   Confidence threshold: you should be able to point at a concrete signal
   ("the screenshot shows three columns squished to <140px each at
-  mobile" + "JSON has gridTemplateColumns: repeat(3, 1fr)"). If the
+  mobile" + "model has gridTemplateColumns: repeat(3, 1fr)"). If the
   desktop screenshot already looks fine at the narrower widths because
   responsiveScales handled it, SKIP.
 
@@ -120,7 +131,7 @@ STEP 2 — MATCH AGAINST THE CATALOG
 STEP 3 — APPLY OVERRIDES
 ================================================================================
 
-  Apply each matched pattern by editing the component's JSON in place. For
+  Apply each matched pattern by editing the component model in place. For
   every style change:
 
     Find the node (by traversing structure, matching tag + class + index).
@@ -128,6 +139,10 @@ STEP 3 — APPLY OVERRIDES
       "style": { "base": { ... }, "tablet": { ... }, "mobile": { ... } }
     If `style` is currently a flat StyleObject, wrap it: move existing keys
     under "base", then add the tablet/mobile blocks alongside.
+
+    (The astro writer emits this `style: { base, tablet, mobile }` model as
+    `style({...})` in the .astro file — you author the model exactly as you
+    would for a JSON project; the format translation is transparent.)
 
     Merge your override keys into the appropriate breakpoint block. Do NOT
     overwrite existing tablet/mobile keys — preserve user/extractor work.
@@ -139,7 +154,7 @@ STEP 3 — APPLY OVERRIDES
 STEP 4 — SAVE
 ================================================================================
 
-  Save the updated JSON via:
+  Save the updated model via:
 
     curl -s -X POST http://localhost:<STUDIO_PORT>/api/save-component \
       -H 'content-type: application/json' \
@@ -147,7 +162,9 @@ STEP 4 — SAVE
 
   Payload: { "name": "<Name>", "data": { ...updated component object... }, "category": "imported" }
   (Use whatever category the original component had — read it from the
-  file. Falling back to "imported" is fine for new-from-import projects.)
+  model. Falling back to "imported" is fine for new-from-import projects.)
+  The payload is the format-transparent node-tree model; the astro writer
+  translates it to .astro on disk.
 
   Check status. On 4xx: read error, fix payload, retry once. Second
   failure → return `status: error` with the error body.
@@ -247,7 +264,7 @@ Tablet usually keeps the decoration. Only hide on tablet too if the tablet scree
 
 ### 7. nav-hide-hamburger (Header only)
 
-**Recognition.** Component name is `Header` (or matches header semantics: contains a `<nav>` + ≥3 links + a logo). The desktop screenshot shows a horizontal nav. The mobile screenshot shows the nav still horizontal AND overflowing OR squished into the logo. The JSON has BOTH a desktop nav-block AND a hamburger-shaped node (icon button, often 3 stacked rects or an `<svg>` with class hint `menu`/`hamburger`/`burger`).
+**Recognition.** Component name is `Header` (or matches header semantics: contains a `<nav>` + ≥3 links + a logo). The desktop screenshot shows a horizontal nav. The mobile screenshot shows the nav still horizontal AND overflowing OR squished into the logo. The model has BOTH a desktop nav-block AND a hamburger-shaped node (icon button, often 3 stacked rects or an `<svg>` with class hint `menu`/`hamburger`/`burger`).
 
 **Overrides.**
 - On the desktop nav node: `mobile.display: "none"`.
@@ -257,11 +274,11 @@ Add a one-line note to the report: `mobile-nav-css-hooks-set; run /add-interacti
 
 **DO NOT** apply when:
 - A `data-action="toggle-mobile-nav"` attribute is already present (someone already ran `/add-interactivity`).
-- There's no hamburger node in the JSON (don't invent one — that's restructuring).
+- There's no hamburger node in the model (don't invent one — that's restructuring).
 
 ### 8. horizontal-overflow-fix (catch-all for spillover)
 
-**Recognition.** The mobile screenshot shows the component's right edge extending past viewport, AND none of the more specific patterns above match. The JSON has a node with `whiteSpace: nowrap` on long text, OR `display: flex` with no `flexWrap`, OR a fixed-width child this skill couldn't otherwise identify.
+**Recognition.** The mobile screenshot shows the component's right edge extending past viewport, AND none of the more specific patterns above match. The model has a node with `whiteSpace: nowrap` on long text, OR `display: flex` with no `flexWrap`, OR a fixed-width child this skill couldn't otherwise identify.
 
 **Overrides.** On the component's root node:
 - `mobile.maxWidth: "100%"`.
@@ -283,9 +300,9 @@ This is a last-resort fix. Note in the report: `applied horizontal-overflow-fix 
 
 | Symptom | Action |
 |---|---|
-| Screenshot 4xx with primary selector | Retry once with looser selector. Second failure → proceed JSON-only for that width, flag `no-screenshot-<label>` |
-| All three screenshots fail | Return `status: error, reason: no-screenshots` — JSON-only responsive reasoning is too unreliable |
-| Component JSON not found | Return `status: error, reason: missing-json` |
+| Screenshot 4xx with primary selector | Retry once with looser selector. Second failure → proceed model-only for that width, flag `no-screenshot-<label>` |
+| All three screenshots fail | Return `status: error, reason: no-screenshots` — model-only responsive reasoning is too unreliable |
+| `GET /api/component-data/<Name>` 404 | Return `status: error, reason: missing-component` |
 | `/api/save-component` 4xx | Read error, fix payload, retry once. Second failure → return error |
 | Existing tablet/mobile blocks conflict with what you'd add | Honor existing values — only fill in keys that are missing |
 | Pattern is ambiguous between two catalog entries | Skip with `reason: ambiguous-<a>-vs-<b>` — be explicit about which two |

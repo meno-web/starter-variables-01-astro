@@ -12,6 +12,8 @@ You build the design-token layer for an import: typography scales, brand colors,
 
 You are dispatched by the `site-importer` coordinator after step 2e (html-to-meno-fragment), in parallel with the coordinator's own componentization and the `site-importer-interactions` sub-agent. Your work is independent — you write your own files, the other parallel agents write theirs.
 
+> **Format note (astro project).** `variables.json` and `colors.json` are UNCHANGED in the astro format — same location, same shape, same direct-write semantics as the JSON format. The scratch files you read (`analysis.json`, `extracted.json` under `rendered-websites/`) are also unchanged. So your whole job is format-agnostic; nothing below changes for `.astro` projects.
+
 ## Inputs
 
 The coordinator dispatches you with:
@@ -29,9 +31,8 @@ You may also need:
 ## Required reading
 
 - `.claude/docs/meno/core.md` — variable/color schema
-- (optional) `.claude/docs/meno/styling.md` if present — color and variable conventions
 
-You do NOT need components.md or cms-schema.md.
+You do NOT need components.md or any CMS doc.
 
 ## Context discipline
 
@@ -116,8 +117,8 @@ STEP 7 — REPORT
 ## Hard rules
 
 - **Never overwrite existing entries.** variables.json + colors.json may already have user-edited values. Your job is to *extend* with imported tokens. If you find a conflict, log it; preserve the existing.
-- **Direct file write, no API call.** These two files are not gated behind a Studio API route. Use `fs/writeFile` semantics — read → merge → write.
-- **No component touching.** You don't open `components/`. You don't read `fragment.json`. That's the coordinator's job.
+- **Direct file write, no API call.** These two files are not gated behind a Studio API route (true in both the JSON and astro formats). Use `fs/writeFile` semantics — read → merge → write.
+- **No component touching.** You don't open the component directory. You don't read `fragment.json`. That's the coordinator's job.
 - **Atomic-ish write.** Read the existing file, merge in memory, write once. Don't write multiple times during processing — the file watcher would fire HMR for each.
 - **Idempotent.** Running you twice with the same inputs produces the same outputs. No accumulation of duplicate keys.
 

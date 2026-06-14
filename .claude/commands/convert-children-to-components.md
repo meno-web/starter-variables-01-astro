@@ -24,15 +24,15 @@ If the children differ in shape, use `/split-node` instead — this skill needs 
 ## What to do
 
 1. **Parse `$ARGUMENTS`.** Tokens, in order:
-   - `<slug>` — page slug (no leading `/`, no `.json`).
+   - `<slug>` — page slug (no leading `/`, no `.astro`).
    - `<nodePath>` — Meno path to the parent node, formatted as a comma-separated index list, starting with `0` (root marker). Examples: `0` for the page root; `0,1,2` for the third child of the second child of root.
    - `<ComponentName>` — PascalCase name for the new component (e.g. `FAQItem`, `PricingTier`). Numeric suffix added on collision.
    - Optional `--port=N` overrides Studio port detection.
-   - Halt with one-line error if slug is empty / contains spaces / ends in `.json`; if nodePath doesn't start with `0`; if componentName isn't PascalCase.
+   - Halt with one-line error if slug is empty / contains spaces / ends in `.astro`; if nodePath doesn't start with `0`; if componentName isn't PascalCase.
 
 2. **Resolve the Studio port** per `.claude/docs/meno/studio-port.md`. Substitute `<STUDIO_PORT>` for every literal `3000` below.
 
-3. **Read the parent node** so you can analyze its children and decide whether to provide an explicit `structure` + `interface`:
+3. **Read the parent node** so you can analyze its children and decide whether to provide an explicit `structure` + `interface`. The API is format-transparent — the page lives on disk as `src/pages/<slug>.astro`, but `GET /api/pages/<slug>` returns the same `{ meta, root }` node-tree model in astro projects:
 
    ```bash
    curl -s http://localhost:<STUDIO_PORT>/api/pages/<slug> | jq '.root'
@@ -49,7 +49,7 @@ If the children differ in shape, use `/split-node` instead — this skill needs 
 
    **Mode B — with props (recommended).** Provide a `structure` with `{{propName}}` placeholders for varying leaves, an `interface` declaring each prop, and a `propsForChildren` array with one entry per non-string child (in order). The endpoint creates the component and assigns the per-instance props.
 
-   For prop conventions (types, naming, `{{propName}}` templates, image as `file`, never `children`) read `.claude/docs/meno/website-convert.md` or `CLAUDE.md`'s "Component Structure" section.
+   For prop conventions (types, naming, `{{propName}}` templates, image as `file`, never `children`) read the `/meno-astro` skill grammar — `resolveProps` field shapes (default/type per prop) match the `interface` shape below.
 
 5. **Call the endpoint** with one POST:
 
@@ -110,9 +110,9 @@ If the children differ in shape, use `/split-node` instead — this skill needs 
 7. **Report.** Print a one-screen summary and stop:
 
    ```
-   ✅ Page:              pages/<slug>.json
+   ✅ Page:              src/pages/<slug>.astro
    ✅ Parent node:       <nodePath>
-   ✅ Component created: components/<finalName>.json  (renamed from <requestedName>? Y/N)
+   ✅ Component created: src/components/.../<finalName>.astro  (renamed from <requestedName>? Y/N)
    ✅ Instances:         <N>
    ✅ Mode:              <verbatim | with-props>
    ```
@@ -133,7 +133,7 @@ If the children differ in shape, use `/split-node` instead — this skill needs 
 | Symptom | Action |
 |---|---|
 | Studio dev server unreachable | Halt with the one-line error from studio-port.md. Do NOT ask the user. |
-| `pages/<slug>.json` missing | Halt; report path. |
+| `src/pages/<slug>.astro` missing | Halt; report path. |
 | `nodePath` out of range | Halt; report which level overflowed. |
 | Target has <2 non-string children | Halt; suggest `/extract-components` or a manual edit. |
 | `propsForChildren` length mismatch | Recompute against actual non-string child count, re-POST once. Second failure → halt. |
