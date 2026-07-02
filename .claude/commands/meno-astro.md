@@ -15,8 +15,8 @@ guarantees `parse(emit(normalizeModel(x))) === normalizeModel(x)` — so anythin
 The project `CLAUDE.md` already covers the everyday cases (the tripwires, node/prop forms, and
 file skeletons) — this skill is the **deeper reference** for the specialized forms below (islands,
 custom components, prop-variant / component-root styling, `LocaleList`, verbatim-JS markers, and the
-full round-trip caveats). Full spec: `docs/meno-astro-dialect.md`. Package API + status:
-`docs/meno-astro-api.md`. Read those if `$ARGUMENTS` needs detail beyond this cheat-sheet.
+full round-trip caveats). Full spec: `docs/meno/meno-astro-dialect.md`. Read it if `$ARGUMENTS`
+needs detail beyond this cheat-sheet.
 
 ## The golden rules (do / don't)
 

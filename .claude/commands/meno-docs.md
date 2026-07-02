@@ -17,15 +17,11 @@ Load Meno documentation for the specified topic to provide context for your task
 
 | Topic | Description |
 |-------|-------------|
-| `core` | Essential editing rules, node types, style objects |
-| `components` | Component interfaces, props, slots, structure |
 | `meno-astro-dialect` | The `.astro` dialect grammar — page/component shape, round-tripping |
-| `meno-astro-api` | Studio dev-server API surface (format-transparent reads/writes) |
+| `meno-migration-docs` | Webflow / pure-CSS → Meno migration playbook (manual, component-first) |
 | `javascript` | defineVars, vanilla JS, component communication |
 | `libraries` | External scripts and CSP configuration |
 | `redirects` | URL redirects for static hosting |
-| `meno-filter` | Client-side filtering with data attributes |
-| `meno-filter-api` | MenoFilter JavaScript API |
 | `studio-port` | Resolving the Studio editor port (non-interactive) |
 
 ## Instructions
@@ -39,18 +35,16 @@ $ARGUMENTS contains the topic requested by the user.
 
 ### Topic Aliases
 - `dialect` → `meno-astro-dialect`
-- `api` → `meno-astro-api`
-- `filter` → `meno-filter`
-- `filter-api` → `meno-filter-api`
+- `migration` → `meno-migration-docs`
 - `js` → `javascript`
 - `port` → `studio-port`
 
 ### Multi-topic Loading
 If user requests multiple topics (comma-separated), load all of them:
-- `/meno-docs components,libraries` → Load both components and libraries docs
+- `/meno-docs dialect,javascript` → Load both the dialect and javascript docs
 
 ## Example
 
-User: `/meno-docs components`
+User: `/meno-docs dialect`
 
-Response: Read and present the content of `.claude/docs/meno/components.md`
+Response: Read and present the content of `.claude/docs/meno/meno-astro-dialect.md`

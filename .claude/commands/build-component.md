@@ -97,21 +97,32 @@ avatar: { type: "image" }
 Never use `children` as a prop name — slots are `<slot />` (or `<slot>fallback</slot>`).
 Pass-through content goes through the slot, not a prop.
 
-### Styles — a static utility `class="..."` string is the default
+### Styles — utility `class="..."` strings; `cx(…, className)` on the root
 
-Static styling is a literal utility **`class="..."`** string — the canonical, round-tripping form
-(it parses to `attributes.class`). Meno's Tailwind-looking engine: named scale (`flex`, `p-4`,
-`gap-3`), design tokens (`bg-muted`, `text-(--text)` from `theme.css`), arbitrary brackets for
-off-scale / literal values (`p-[13px]`, `bg-[#fff]`, `text-(--custom)`), plus desktop-first responsive
-`max-lg:` / `max-sm:` and `hover:` / `focus:` / `active:` prefixes.
+Static styling is a utility class string. On the component **root**, wrap it as
+`class={cx("…", className)}` so a caller's instance overrides merge; **inner nodes can be a bare
+literal `class="…"`** (both parse to `attributes.class`, build, round-trip, and open in Studio):
 
 ```astro
-<div class="flex gap-[12px] p-[24px]">
+<div class={cx("flex gap-[12px] p-[24px]", className)}>
+  <h2 class="text-[20px] font-[500]">{title}</h2>
+</div>
 ```
 
-Reach for the `style({...})` / `cx(...)` / `variants(...)` runtime helpers **only** for values that
-can't be a static class — a prop-bound `{{template}}`, a prop-variant, or a responsive/interactive
-**mapping**. Bind them to the whole props object and assemble with `cx`:
+> ⚠ **The #1 "won't open in Studio" gotcha is NOT the classes — it's a missing `resolveProps`.** A
+> component's frontmatter MUST contain the `resolveProps(Astro, {…})` call (**even when empty**:
+> `const { class: className } = resolveProps(Astro, {});`). Without it the parser treats the file as a
+> *page* (a `root`, no component `structure`), the `/api/component-data` load returns 400, and Studio
+> fails with *"This component is missing its structure definition."* When you extract page markup into
+> a component, **add the `resolveProps` call** — the classes themselves (literal or `cx`) are fine.
+
+The class string is Meno's Tailwind-looking engine: named scale (`flex`, `p-4`, `gap-3`), design
+tokens (`bg-muted`, `text-(--text)` from `theme.css`), arbitrary brackets for off-scale / literal
+values (`p-[13px]`, `bg-[#fff]`, `text-(--custom)`), plus desktop-first responsive `max-lg:` /
+`max-sm:` and `hover:` / `focus:` / `active:` prefixes.
+
+Use `style({...})` / `variants(...)` **inside** the `cx(...)` for values that can't be a static
+class — a prop-bound `{{template}}`, a prop-variant, or a responsive/interactive **mapping**:
 
 ```astro
 const __props = resolveProps(Astro, { variant: { type: "select", options: ["primary", "secondary"], default: "primary" } });
@@ -123,10 +134,10 @@ const { variant, class: className } = __props;
 } } }, __props), className)}>
 ```
 
-- **Colors / tokens** come from `src/styles/theme.css`. A **fixed** color is a static class —
-  `class="text-(--text) bg-(--bg)"`. A **prop-driven** color must use the `style()` `_mapping` above
-  — ⚠ **not** `variants()` (token colors get canonicalized to a named class and silently break there).
-  `variants()` is for bracket-value utilities only (sizes, spacing, layout, gradients).
+- **Colors / tokens** come from `src/styles/theme.css`. A **fixed** color is a static class inside
+  `cx(...)` — `class={cx("text-(--text) bg-(--bg)")}`. A **prop-driven** color must use the `style()`
+  `_mapping` above — ⚠ **not** `variants()` (token colors get canonicalized to a named class and
+  silently break there). `variants()` is for bracket-value utilities only (sizes, spacing, layout, gradients).
 - ⚠ In `resolveProps` / `variants` / `style` object literals: **no trailing commas, no ES6 shorthand**
   (`{ size: size }`, not `{ size }`). A parse failure = no CSS, rendered silently unstyled.
 
@@ -205,7 +216,6 @@ component communication, define:vars prop injection).
 
 - `CLAUDE.md` — the dialect (golden rules, file skeletons, CMS, status & caveats)
 - `.claude/docs/meno/meno-astro-dialect.md` — full dialect grammar & round-trip contract
-- `.claude/docs/meno/meno-astro-api.md` — the `meno-astro` package API + status
 - `.claude/docs/meno/javascript.md` — component JavaScript patterns
 - the **`/meno-astro`** skill — copy-pasteable authoring cheat-sheet (incl. the CMS template
   skeleton, for CMS-backed components)
