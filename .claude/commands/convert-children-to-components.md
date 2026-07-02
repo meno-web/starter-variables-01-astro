@@ -10,6 +10,19 @@ Create ONE new component from a parent node's children, and rewrite every non-st
 
 > **Non-interactive contract.** Never ask the user questions during this skill — see `.claude/docs/meno/studio-port.md`. Validation halts with a one-line error; uncertainty becomes a line in the final report.
 
+> **Format-transparent.** `/api/make-component-from-children` mutates the in-memory
+> node tree and the provider emits `.astro` (or legacy `.json`) underneath — you pass a
+> slug + node path, not a file path, and reads via `/api/pages/<slug>` return the parsed
+> model regardless of on-disk format.
+
+> **Addressing — prefer a semantic `handle` over a raw `nodePath`.** Instead of
+> hand-counting child indices, send a `handle` string the server resolves for you:
+> `"section@2 > .team-grid"` (2nd section candidate → its first `.team-grid`
+> descendant), `".pricing-cards"`, `"section:AboutTeam > ul"`, or
+> `"#features article:nth-of-type(2)"`. Each `>` step descends to the first matching
+> descendant (add `:nth-of-type(N)` to disambiguate). Raw paths still work. See
+> `docs/meno-astro-componentize-plan.md` §6.
+
 ## When to use this vs. neighbours
 
 | Skill | Carves | Use when |
@@ -17,22 +30,21 @@ Create ONE new component from a parent node's children, and rewrite every non-st
 | `/split-page` | Page root → Header / Footer / Layout + per-section components | First-pass page componentization |
 | `/split-node` | One parent → one component **per child** (each different) | Children have different shapes; you want them as separate sections |
 | **`/convert-children-to-components`** | One parent → **one** component, **N instances** | Children share a structure; vary content via props |
-| `/extract-components` | Cross-section pattern mining (Button/Badge/Card/…) | Whole-page repeating-primitive sweep |
 
 If the children differ in shape, use `/split-node` instead — this skill needs them to share a single component shape.
 
 ## What to do
 
 1. **Parse `$ARGUMENTS`.** Tokens, in order:
-   - `<slug>` — page slug (no leading `/`, no `.astro`).
+   - `<slug>` — page slug (no leading `/`, no `.astro`/`.json` extension).
    - `<nodePath>` — Meno path to the parent node, formatted as a comma-separated index list, starting with `0` (root marker). Examples: `0` for the page root; `0,1,2` for the third child of the second child of root.
    - `<ComponentName>` — PascalCase name for the new component (e.g. `FAQItem`, `PricingTier`). Numeric suffix added on collision.
    - Optional `--port=N` overrides Studio port detection.
-   - Halt with one-line error if slug is empty / contains spaces / ends in `.astro`; if nodePath doesn't start with `0`; if componentName isn't PascalCase.
+   - Halt with one-line error if slug is empty / contains spaces / ends in `.astro`/`.json`; if nodePath doesn't start with `0`; if componentName isn't PascalCase.
 
 2. **Resolve the Studio port** per `.claude/docs/meno/studio-port.md`. Substitute `<STUDIO_PORT>` for every literal `3000` below.
 
-3. **Read the parent node** so you can analyze its children and decide whether to provide an explicit `structure` + `interface`. The API is format-transparent — the page lives on disk as `src/pages/<slug>.astro`, but `GET /api/pages/<slug>` returns the same `{ meta, root }` node-tree model in astro projects:
+3. **Read the parent node** so you can analyze its children and decide whether to provide an explicit `structure` + `interface`:
 
    ```bash
    curl -s http://localhost:<STUDIO_PORT>/api/pages/<slug> | jq '.root'
@@ -49,7 +61,7 @@ If the children differ in shape, use `/split-node` instead — this skill needs 
 
    **Mode B — with props (recommended).** Provide a `structure` with `{{propName}}` placeholders for varying leaves, an `interface` declaring each prop, and a `propsForChildren` array with one entry per non-string child (in order). The endpoint creates the component and assigns the per-instance props.
 
-   For prop conventions (types, naming, `{{propName}}` templates, image as `file`, never `children`) read the `/meno-astro` skill grammar — `resolveProps` field shapes (default/type per prop) match the `interface` shape below.
+   For prop conventions (types, naming, `{{propName}}` templates, image as `file`, never `children`) read `.claude/docs/meno/website-convert.md` or `CLAUDE.md`'s "Component Structure" section.
 
 5. **Call the endpoint** with one POST:
 
@@ -59,7 +71,8 @@ If the children differ in shape, use `/split-node` instead — this skill needs 
      -d @/tmp/convert-children-payload.json
    ```
 
-   Payload shape (Mode B example):
+   Payload shape (Mode B example). You may replace `"nodePath": [...]` with
+   `"handle": "section@2 > .team-grid"` and let the server resolve the path:
 
    ```json
    {
@@ -112,7 +125,7 @@ If the children differ in shape, use `/split-node` instead — this skill needs 
    ```
    ✅ Page:              src/pages/<slug>.astro
    ✅ Parent node:       <nodePath>
-   ✅ Component created: src/components/.../<finalName>.astro  (renamed from <requestedName>? Y/N)
+   ✅ Component created: src/components/<finalName>.astro  (renamed from <requestedName>? Y/N)
    ✅ Instances:         <N>
    ✅ Mode:              <verbatim | with-props>
    ```
@@ -126,7 +139,7 @@ If the children differ in shape, use `/split-node` instead — this skill needs 
 - **`componentName` is PascalCase.** Server rejects non-PascalCase outright.
 - **`propsForChildren.length` must equal the count of non-string children.** Off-by-one → 400.
 - **Never overwrite an existing component.** Server appends a numeric suffix; check `renamed` in the response.
-- **One invocation = one POST.** Don't fan out across siblings — that's `/extract-components`' job.
+- **One invocation = one POST.** Don't fan out across multiple parent nodes in one call — run the skill once per parent.
 
 ## Failure modes
 
@@ -135,6 +148,6 @@ If the children differ in shape, use `/split-node` instead — this skill needs 
 | Studio dev server unreachable | Halt with the one-line error from studio-port.md. Do NOT ask the user. |
 | `src/pages/<slug>.astro` missing | Halt; report path. |
 | `nodePath` out of range | Halt; report which level overflowed. |
-| Target has <2 non-string children | Halt; suggest `/extract-components` or a manual edit. |
+| Target has <2 non-string children | Halt; needs ≥2 siblings sharing a shape — suggest a manual edit. |
 | `propsForChildren` length mismatch | Recompute against actual non-string child count, re-POST once. Second failure → halt. |
 | Children shapes diverge significantly | Halt; suggest `/split-node` instead. |

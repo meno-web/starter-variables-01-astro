@@ -72,7 +72,7 @@ You have been asked to visually compare the live website against the local Studi
    📷 Studio:  rendered-websites/<host>/verify/<slug>-studio.png
    ```
 
-8. **Do NOT auto-fix drift.** Queue any drift as a follow-up the user can address by re-running `/split-page`, `/extract-components`, `/add-interactivity`, or by hand-editing the section component. This skill is read-only against the project.
+8. **Do NOT auto-fix drift.** Queue any drift as a follow-up the user can address by re-running `/add-interactivity` or by hand-editing the section component. This skill is read-only against the project.
 
 ## Edge cases
 
@@ -82,6 +82,6 @@ You have been asked to visually compare the live website against the local Studi
 
 ## What you do NOT do
 
-- You do NOT touch `src/pages/`, `src/components/`, `variables.json`, `colors.json`, or any project file.
+- You do NOT touch `src/pages/`, `src/components/`, `src/styles/theme.css`, or any project file.
 - You do NOT re-run `/extract`, `/analyze-page`, or any heavy import step.
 - You do NOT iterate the whole site — verify one slug per invocation. If the user wants several, they call the skill several times (or invoke it in a `/loop`).

@@ -88,6 +88,6 @@ For non-component targets (raw HTML elements, slot content), fall back to `--sel
 
 ## What you do NOT do
 
-- You do NOT touch `src/pages/`, `src/components/`, `variables.json`, `colors.json`, or any project file. This skill is read-only against the project.
+- You do NOT touch `src/pages/`, `src/components/`, `src/styles/theme.css`, or any project file. This skill is read-only against the project.
 - You do NOT auto-fix anything you spot in the screenshot. Report observations; the user (or a follow-up skill) acts on them.
 - You do NOT take screenshots of arbitrary external URLs — that's what `/verify-import` is for. This skill targets the local Studio render only.

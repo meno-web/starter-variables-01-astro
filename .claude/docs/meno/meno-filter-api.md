@@ -108,12 +108,12 @@ filter.getItems();     // Current page items
 \`\`\`javascript
 // Listen for filter changes
 filter.on('afterFilter', (items) => {
-  console.log('Filtered items:', items.length);
+  log.info('Filtered items:', items.length);
 });
 
 // Listen for page changes
 filter.on('pageChange', (pageInfo) => {
-  console.log('Current page:', pageInfo.current);
+  log.info('Current page:', pageInfo.current);
 });
 \`\`\`
 

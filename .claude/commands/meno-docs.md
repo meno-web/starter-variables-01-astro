@@ -27,8 +27,6 @@ Load Meno documentation for the specified topic to provide context for your task
 | `meno-filter` | Client-side filtering with data attributes |
 | `meno-filter-api` | MenoFilter JavaScript API |
 | `studio-port` | Resolving the Studio editor port (non-interactive) |
-| `extract-components-catalog` | Catalog of UI primitives / block components to mine |
-| `import-site-loop` | The import pipeline loop and checkpointing |
 
 ## Instructions
 
@@ -46,8 +44,6 @@ $ARGUMENTS contains the topic requested by the user.
 - `filter-api` → `meno-filter-api`
 - `js` → `javascript`
 - `port` → `studio-port`
-- `catalog` → `extract-components-catalog`
-- `import` → `import-site-loop`
 
 ### Multi-topic Loading
 If user requests multiple topics (comma-separated), load all of them:

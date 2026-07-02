@@ -1,113 +1,139 @@
-<!-- MENO_DOCS_VERSION: 0.1.3 -->
-# Meno — Visual CMS for Astro
+<!-- MENO_DOCS_VERSION: 0.1.21 -->
+# Meno is a visual Astro editor
 
-This is an **Astro project** — standard `src/pages` and `src/components` `.astro` files plus Astro
-content collections — authored with **Meno, a visual CMS / page builder for Astro**.
+Meno reads and writes `.astro` files in a constrained *meno-astro dialect* — a small subset of Astro
+the editor can parse back into its visual model. The result is a normal Astro codebase you can read and
+hand-edit, with a visual editor layered on top.
 
-Meno reads and writes these `.astro` files in a constrained, fully round-trippable convention — the
-**Meno format** (the spec calls it the *meno-astro dialect*): a small, well-defined subset of Astro that
-the editor can parse back into its visual model. The result is a normal Astro codebase you can read,
-hand-edit, and version — with a visual editor layered on top.
+The `meno-astro` codec guarantees a lossless round-trip (`parse(emit(model)) === model`), so **anything
+you hand-write must stay inside the dialect grammar, or it's lost on the next visual save.**
 
-You can edit this project two ways, and they stay in sync:
-- **Visually**, in the Meno editor (the primary surface).
-- **By hand**, editing the `.astro` files directly.
-
-The `meno-astro` codec (`emit` / `parse`) bridges the two and guarantees a lossless round-trip — so
-**anything you hand-write must stay inside the Meno-format grammar below**, or it won't round-trip
-(it'll be lost on the next visual save).
-
-> **Read this first, then keep `.claude/docs/meno/meno-astro-dialect.md` open for the full grammar,
-> and use the `/meno-astro` skill when authoring or editing `.astro` by hand.**
+**This file is enough to edit `.astro` for the everyday cases** — pages, components, styling, props,
+lists, conditionals — straight from the tripwires, node/prop forms, and skeletons below. Reach for the
+**`/meno-astro` skill** and the dialect/API docs only for the specialized cases under
+**[When to go deeper](#when-to-go-deeper)** (CMS template pages, islands, custom components,
+prop-variant / component-root styling, deep "will this round-trip?" questions, the full Studio API).
+Don't load the skill for a routine edit.
 
 ---
 
-## Project layout
+## Anatomy & conventions
 
-```
-project.config.json        — project config (baseComponent, locales, format: "astro")
-colors.json                — theme colors (var(--text), var(--bg), …)
-variables.json             — CSS design tokens
-src/
-  pages/<slug>.astro       — pages  (the route tree)
-  pages/<collection>/[slug].astro — CMS template pages (dynamic routes; schema in meta.cms)
-  components/<Name>.astro  — reusable components
-  content/<collection>/    — CMS items (JSON entries; .draft.json = unpublished)
-  content.config.ts        — Astro content-collection config (build-readiness)
-images/  fonts/  icons/    — assets, referenced with absolute paths (/images/hero.webp)
-```
-
-- A **page** is frontmatter (`const meta`) + the node tree wrapped in `<BaseLayout meta={meta}>`.
-- A **component** is frontmatter (a single authoritative `resolveProps(Astro, {…})` prop block,
-  optional `__meno` meta) + body + optional `<style>` / `<script>`.
+- A **page** = frontmatter `const meta` + node tree wrapped in `<BaseLayout meta={meta}>`
+  (`src/pages/<slug>.astro`).
+- A **component** = one authoritative `resolveProps(Astro, {…})` block (optional `__meno` meta) + body +
+  optional `<style>` / `<script>` (`src/components/<Name>.astro`).
+- CMS items are JSON under `src/content/<collection>/`; `<id>.draft.json` is the unpublished sibling.
+- Design tokens (theme colors + CSS variables) live in one stylesheet, `src/styles/theme.css`;
+  project config in `project.config.json`. Assets are referenced with **absolute** paths
+  (`/images/hero.webp`).
 
 ---
 
-## The golden rules (do / don't)
+## Selection
 
-1. **Styles live in `style({...})`, never in a raw `class="..."`.**
-   The argument is a Meno `StyleObject`: `{ base: {...}, tablet: {...}, mobile: {...} }` (or a flat
-   object). Prop-bound values are `{ _mapping: true, prop: "name", values: {...} }`.
-   - ✅ `<div class={style({ base: { display: "flex", gap: "12px" } })}>`
-   - ❌ `<div class="flex gap-3">` — a raw Tailwind/CSS class string does **not** round-trip.
+Read `.meno/selection.json` for the element currently selected in the editor.
 
-2. **i18n values live in `i18n({...})`** with the `{ _i18n: true, en, pl, … }` shape.
-   - ✅ `<Heading text={i18n({ _i18n: true, en: "About", pl: "O nas" })} />`
+---
 
-3. **Meno templates are `{{expr}}` in the model → `{expr}` (or `` `…${expr}…` ``) in markup.**
-   To put a template back by hand, write a JSX `{expr}` with a bare identifier / member / ternary; the
-   parser turns it into `{{expr}}`. A whole-string template → bare expr; a mixed string → backtick
-   literal.
-   - ✅ `<span>{item.title}</span>` ⟶ model `"{{item.title}}"`
+## Round-trip tripwires (the cardinal don'ts)
 
-4. **Component props are JSX attributes.**
-   - string → `text="Hi"` (or `text={"a \"quoted\" value"}` if it has quotes/newlines)
-   - number → `size={1}` · boolean → `isMarginTop={true}`
-   - object / link → `link={{ href: "/x", target: "_blank" }}`
-   - i18n → `text={i18n({ _i18n: true, … })}`
-   Component tags are **Capitalized** and need a matching local import in the frontmatter
-   (`import Name from '../components/Name.astro'` for pages, `'./Name.astro'` for components).
+Scannable rules that keep an edit round-tripping and building. The positive forms for each live in the
+node/prop catalog + skeletons below.
 
-5. **The `resolveProps(Astro, {…})` argument is authoritative for component props.**
-   There is no separate `interface Props`/`__meno_props`: a component declares its props exactly once
-   as `const { …names…, class: className } = resolveProps(Astro, {...})`. The `{...}` literal is
-   authoritative (it's what the parser reads); the destructured names + their TS types are
-   inferred/regenerated on save. If you change a prop, change that literal. Keep `class: className`
-   in the destructure, and emit the call even for an empty interface
-   (`const { class: className } = resolveProps(Astro, {});`). Component metadata (`category`,
-   `acceptsStyles`, `libraries`) goes in `const __meno = {...}`
-   (omit if empty). A component's JS that needs its props uses native Astro
-   `<script define:vars={{ a, b }}>` (`true` = all props / `string[]` = a subset); otherwise
-   a plain `<script is:inline>`. `defineVars` is **not** a `__meno` key.
+1. **Static styling is a utility class string** — `class="flex p-4 bg-muted max-lg:p-2 hover:bg-[#222]"`
+   (Meno's own Tailwind-*looking* engine: named scale `p-4`=16px, named tokens `bg-muted`, brackets
+   `p-[13px]` for off-scale, desktop-first `max-lg:`/`max-sm:` + `hover:`/`focus:`/`active:` prefixes; the editor
+   canonicalizes on save). **Named VALUE scales bind to YOUR variables, not Tailwind defaults**:
+   `text-lg`, `font-semibold`, `rounded-md`, `shadow-lg`, `max-w-md`, `leading-tight`, `tracking-wide`,
+   `font-sans` emit `var(--token)` and render **only if that variable is defined** in `src/styles/theme.css` —
+   else inert (Meno is token-based; no fallback to Tailwind's px/rem). For a one-off use a bracket
+   (`text-[18px]`) or define the token. *Computed* forms work standalone: `w-1/2`, `-mt-4`, `grid-cols-3`,
+   `col-span-2`, `scale-105`, `rotate-45`, `duration-300`, `ease-in-out`. **Only** prop-bound
+   `{{template}}`, prop-variant, and component-root styling can't be a class → `style()` / `variants()` / `cx()`.
+   It styles **every** node the same way — an `<Embed>`, `<Link>`, or `<Markdown>` carries `class="…"`
+   just like a `<div>` (an instance rides its `class` prop); only `list`/`island`/`slot`/`custom` have no styling.
+2. **i18n values are wrapped** — `i18n({ _i18n: true, en: "About", pl: "O nas" })`, never a bare string.
+3. **Meno templates** — model `{{expr}}` ↔ markup `{expr}` (bare identifier / member / ternary) or
+   `` `…${expr}…` ``.
+4. **Component props are JSX attributes** — `text="Hi"`, `size={1}`, `link={{ href: "/x" }}`,
+   `text={i18n({…})}`; Capitalized tags need a matching local import in the frontmatter.
+5. **`resolveProps(Astro, {…})` is authoritative** — declare props exactly once
+   (`const { …names…, class: className } = resolveProps(Astro, {…})`); keep `class: className`; emit
+   the call even when empty. Optional `const __meno = {…}` carries `acceptsStyles` / `libraries`
+   (omit if empty); **Studio groups components by their folder** under `src/components/` (e.g.
+   `ui/`, `sections/`), not by metadata — a `__meno.category` round-trips but is inert for
+   grouping, so organize with folders.
+6. **Conditionals & lists** — `{cond && ( … )}`; prop list `{ list(items, {…}).map((item, itemIndex) =>
+   ( … )) }`, collection list `getCollectionList("blog", {…}, Astro)` mapped in the body (the loop var
+   must match the `{{…}}` bindings inside). A prop list's backing prop must be declared
+   `type: "list"` with **`itemSchema` + an object-array `default`** (`[{ label: "First" }]`), not a
+   bare-string `default` — that round-trips + builds but won't open in Studio (see Node & prop forms).
+7. **`const meta` is a plain object** — never `export const meta` / `satisfies …` / `import type`
+   (those break the real `astro build`). SEO/head fields (`viewTransitions`, `noindex`, `sitemap`,
+   `customCode`, `prerender`) ride the same object.
+8. **CMS rich-text renders via a helper** — `<Fragment set:html={richTextWithComponents(cms.field,
+   cmsComponents)} />`, never a text interpolation (`{i18n(cms.richField)}` would print `[object
+   Object]`). The **same** registry-backed render applies to a `type:"rich-text"` **prop**
+   (`set:html={richTextWithComponents(<prop>, cmsComponents)}`) and an **`<Embed>`** of a rich-text
+   field (`<Embed html={…} components={cmsComponents} />`) — a bare `set:html={value}` renders text
+   but **drops any component embedded in the rich text** (it ships as an empty `<div
+   data-meno-component>`). The collection schema lives in the template page's `meta.cms`, **not**
+   `content.config.ts` (which is generated with a permissive schema).
+9. **Never import a renderer or adapter in `astro.config`** — add SSR adapters and island framework
+   renderers via `project.config.json` (the preview allow-lists only `astro/config` + `meno-astro` and
+   won't open the project otherwise).
+10. **Serialization is deterministic** — don't hand-tune formatting; a save re-emits canonically (stable
+    key order, JSON escaping, 80-col wrapping) and drops empties.
+11. **Out-of-grammar content is lost on save** — flag it, don't write it. To escape the dialect, climb
+    the escalation ladder: native dialect → custom component (or island, for a client framework) →
+    hand-authored page (see below).
 
-6. **Conditionals are `{cond && ( … )}`.** A node's `if: "{{visible}}"` → `{visible && ( … )}`;
-   `if: false` → `{false && ( … )}`; a `BooleanMapping` → `{when({...}) && ( … )}`.
+---
 
-7. **Lists:**
-   - prop list → `{ list(items, { limit: 6 }).map((item, itemIndex) => ( … )) }` (loop var defaults to
-     `item`; index is always `<var>Index`).
-   - collection list → a frontmatter `const xList = await getCollectionList("blog", { … }, Astro)` then
-     `{ xList.map((blog, blogIndex) => ( … )) }` (loop var defaults to `singularize(source)`).
-   - ⚠ If you author a collection list, make the loop variable match the templates in the body
-     (`(blog, blogIndex)` + `{{blog.title}}`). Set `itemAs` if you want a specific name.
+## Node & prop forms
 
-8. **Other node forms (use the exact tags):**
-   - `<Link href="/x">…</Link>` (link); `href={i18n({...})}` or `href={href({...})}` for i18n / mapping hrefs.
-   - `<Embed html={`<svg>…</svg>`} />` (single-line) or hoist multi-line HTML to a frontmatter
-     `const __embedN = \`…\`` and use `html={__embedN}`.
-   - `<slot />` / `<slot>fallback</slot>`.
-   - `<LocaleList … />` (locale switcher; style sub-props wrapped in `style(...)`, editor meta in a
-     single `meta={{...}}`).
-   - Dynamic tag (`h{{size}}`) → frontmatter `const Tag_0 = \`h${size}\`` + `<Tag_0>…</Tag_0>`.
+Everyday building blocks. Component tags are Capitalized and need a matching frontmatter import
+(`'../components/Name.astro'` from a page, `'./Name.astro'` from a component); HTML stays lowercase.
 
-9. **Don't rely on escape hatches yet.** Non-dialect / hand-written spans (raw Tailwind, ad-hoc Astro
-   logic) are **not** preserved across a round-trip today. Stay inside the grammar; if you can't express
-   something in dialect, flag it rather than writing it.
+- **Text** — in `children`: `<span>Hello</span>`; template child `<span>{item.title}</span>` (→
+  `{{item.title}}`); mixed string → backtick literal `<span>{`$${item.price}`}</span>`.
+- **Link** — `<Link href="/x">…</Link>`; i18n / mapping href via `href={i18n({…})}` or `href={href({…})}`.
+- **Conditional** — `{cond && ( … )}` (`if: "{{visible}}"` → `{visible && (…)}`; `if: false` →
+  `{false && (…)}`; `BooleanMapping` → `{when({…}) && (…)}`).
+- **Collection list** — frontmatter `const blogList = await getCollectionList("blog", {…}, Astro)` then
+  `{ blogList.map((blog, blogIndex) => (…)) }`; loop var (default `singularize(source)`) must match the
+  `{{blog.*}}` bindings in the body.
+- **slot** — `<slot />` / `<slot>fallback</slot>`; named `<slot name="header" />` filled by a child
+  `slot="header"` attr; unnamed children → the default slot.
+- **Embed** — `<Embed html={`<svg>…</svg>`} />` single-line; multi-line → hoist to a frontmatter
+  `const __embedN = \`…\`` + `html={__embedN}` (`html={prop}` / `html={i18n(cms.field)}` stay bindings).
+- **Image** — a local `<img src=… alt=… />` → runtime `<MenoImage>` (lazy + responsive) **by default**;
+  opt out `data-meno-optimize="false"`; remote / `data:` / `.svg` stay bare unless `="true"` (+ host in
+  `image.domains`).
+- **Markdown** — `<Markdown source={`# Title\n\nbody`} />` (multi-line → `const __mdN`); `source` is
+  verbatim — no `{{…}}`.
+- **Dynamic tag** (`h{{size}}`) — frontmatter `const Tag_0 = \`h${size}\`` + `<Tag_0>…</Tag_0>`.
+- **Component props** — JSX attributes: `text="Hi"`, `size={1}`, `isMarginTop={true}`,
+  `link={{ href: "/x" }}`, `text={i18n({…})}`.
 
-10. **Serialization is deterministic.** All literals (style / props / meta / i18n / list config) are
-    printed with stable key order, JSON string escaping, and 80-col wrapping. Don't hand-tune
-    formatting — a save re-emits canonically. Empties drop on normalization (empty `style`, empty
-    `children`, empty `meta` / `interface`, and a lone array child collapses to a bare string).
+**Prop list** — declare the backing prop `type: "list"` (**`itemSchema` required** + an **object-array
+`default`**), then map it and bind item fields:
+```astro
+const { items, class: className } = resolveProps(Astro, {
+  items: { type: "list", itemSchema: { label: { type: "string", default: "Item" } },
+    default: [{ label: "First" }, { label: "Second" }] },
+});
+// body — loop var defaults to `item`, index is always `<var>Index`:
+{ list(items, { limit: 6 }).map((item, itemIndex) => ( <span>{item.label}</span> )) }
+```
+⚠ A bare-string `default` (`["First", "Second"]`) or a missing `itemSchema` round-trips through the codec
+**and** `astro build`, but won't open in Studio (`interface.items — list prop requires itemSchema and an
+object-array default`) — the most common first guess.
+
+`resolveProps(Astro, {…})` is the one authoritative prop declaration (tripwire 5); the destructured names
++ TS types regenerate on save, so change the `{…}` literal to change a prop. Component JS that needs props
+→ `<script define:vars={{ a, b }}>`; without it → `<script is:inline>`.
 
 ---
 
@@ -116,101 +142,73 @@ images/  fonts/  icons/    — assets, referenced with absolute paths (/images/h
 **Page** (`src/pages/<slug>.astro`):
 ```astro
 ---
-import { i18n } from 'meno-astro';
 import { BaseLayout } from 'meno-astro/components';
 import Heading from '../components/Heading.astro';
 
 const meta = {
-  title: "About",
-  description: "About this site"
+  title: { _i18n: true, en: "About", pl: "O nas" }
 };
 ---
 <BaseLayout meta={meta}>
-  <main>
+  <div>
     <Heading size={1} text={i18n({ _i18n: true, en: "About", pl: "O nas" })} />
-  </main>
+  </div>
 </BaseLayout>
 ```
+Optional head/SEO fields ride the same plain `const meta` (never `export` / `satisfies`):
+`viewTransitions` (→ `<ClientRouter>`), `noindex`, `sitemap`, `customCode`. **`prerender: true | false`**
+is the per-page static/SSR override — lifted OUT of `const meta` to a top-level `export const prerender =
+…`; omit to inherit project `output`. Project-wide config (`redirects`, `image.domains`, `prefetch`,
+`devToolbar`, `icons`, global `customCode`) lives in `project.config.json`.
 
 **Component** (`src/components/<Name>.astro`):
 ```astro
 ---
-import { resolveProps, style } from 'meno-astro';
+import { resolveProps, cx } from 'meno-astro';
 
 const { text, class: className } = resolveProps(Astro, {
   text: { type: "string", default: "Heading" }
 });
-
-const __meno = { category: "ui" };
 ---
-<h2 class={style({ base: { fontWeight: "500" } })}>{text}</h2>
+<h2 class={cx("font-[500]", className)}>{text}</h2>
 ```
 
 ---
 
-## CMS (content collections)
+## Escalation ladder
 
-- **Items** live as JSON under `src/content/<collection>/`. Each item file has a stable `_id` (matching
-  its filename stem) and `_createdAt`. An unpublished edit is a sibling `<name>.draft.json`; the published
-  file is the one without `.draft`.
-- **Schemas** are defined by the collection's **template page** at `src/pages/<collection>/[slug].astro`
-  — an idiomatic Astro dynamic route (with `getStaticPaths`) whose `meta.source === "cms"` carries the
-  schema in `meta.cms`. That template is the source of truth for the collection's fields — **not**
-  `src/content.config.ts` (which is generated with a permissive schema only so `astro build` can resolve
-  the collection). The route directory comes from `meta.cms.urlPattern` (`/blog/{{slug}}` →
-  `src/pages/blog/[slug].astro`). In the Meno editor the template is addressed as `/templates/<collection>`.
-  The `import { getCollection }`, `getStaticPaths()`, and `const { cms } = Astro.props;` lines are derived
-  boilerplate (regenerated from `meta.cms`; the codec skips them) — edit `meta.cms`, not those.
-- A list backed by a collection is a frontmatter `getCollectionList("<collection>", { … }, Astro)` const
-  mapped in the body (see rule 7).
-- **Rendering fields:** plain fields render as `{i18n(cms.field)}`; **rich-text** fields render via
-  `<Fragment set:html={richTextWithComponents(cms.field, cmsComponents)} />` — never a text
-  interpolation (a plain `{i18n(cms.richField)}` would print `[object Object]` since a rich-text
-  value is a structured object, not a string). `richTextWithComponents` (from `meno-astro`) also
-  renders **components embedded in the rich text** (TipTap `menoComponent` nodes) against
-  `cmsComponents` — the generated registry `src/cmsComponents.ts` (a constant `import.meta.glob`
-  over `src/components/`; don't hand-edit it). Its import
-  (`import { cmsComponents } from '../../cmsComponents'`) is derived boilerplate like
-  `getStaticPaths`. An **embed node** bound to a rich-text field uses
-  `<Embed html={i18n(cms.field)} />`.
+Reach for the **lowest** rung that works; escalate only on a genuine wall (never trade away visual editing
+for something the dialect already models):
 
-When adding or changing a collection, edit the template `[slug].astro`'s `meta.cms` schema and keep the
-item files in `src/content/<collection>/` consistent with it.
+1. **Native dialect** — nodes + class strings + `style()` / `i18n()` / `{{bindings}}` + reusable
+   `src/components/*.astro`. The default.
+2. **Custom component / island** — a *piece* the dialect can't model → an opaque `src/custom/*.astro`
+   (server-only, explicit props, black box); for a *client* framework use an **island** under
+   `src/islands/*`. Both need the `/meno-astro` skill for the exact form.
+3. **Hand-authored page** — a whole bespoke route → `src/pages/<route>.astro`. A dialect body + foreign
+   frontmatter stays visually editable (`_frontmatter` passthrough); a fully non-dialect page opens
+   **read-only**. Both build as normal Astro.
 
 ---
 
-## Selection
+## When to go deeper
 
-Read `.meno/selection.json` for the element currently selected in the editor. It's a **bare JSON array**
-tracing the editing hierarchy from the outermost page through every component drill-in down to the
-selected node — each entry is `<file>:<lineStart>-<lineEnd>` pointing into the real `.astro` source, e.g.
-`["src/pages/index.astro:6-14", "src/components/section/Hero.astro:40-58", "src/components/ui/Button.astro:22-29"]`.
-The **last** entry is the selected node; earlier entries are the drill-in instances (the next entry's
-filename names that component, and the line range disambiguates which instance was entered when a page
-uses several of the same component). Open the file at the given lines to see the element's tag,
-`class={style(…)}`, props, and children in dialect source. The file contains `null` when nothing is
-selected.
+CLAUDE.md covers everyday editing. Load more **only** for the specialized cases:
 
----
-
-## Status & caveats (important)
-
-This format is **new and still being completed**. Be honest about what works today:
-
-- ✅ **Editing & round-trip work.** Pages/components read, save, and round-trip through `meno-astro`'s
-  `emit`/`parse`. Visual edits and hand-edits stay in sync as long as you stay in the grammar.
-- ⚠ **`astro build` is not wired yet.** The runtime helpers the emitted markup imports (`style()`,
-  `href()`, `when()`, `getCollectionList()`, `embedHtml()`) and the `meno-astro/components`
-  components (`BaseLayout`, `Link`, `Embed`, `LocaleList`) are **not yet implemented**, so the emitted
-  `.astro` is correct Meno format but **not yet runnable** by `astro build`. Preview through the Meno
-  editor, not `astro dev` / `npm run build`. (`i18n()` and `list()` are the exception — they're
-  implemented; the `i18n()` resolver works, but per-locale rendering still awaits the `BaseLayout`
-  wiring that calls `runWithLocale` per route.)
-- ⚠ **Escape hatches (`rawClass` / `verbatim` regions) are not implemented yet** — only Meno-format
-  content survives a round-trip. Don't hand-author raw `class="…"` or arbitrary Astro logic expecting it
-  to persist.
-
-For the full grammar and the implemented/pending split, see:
-- `.claude/docs/meno/meno-astro-dialect.md` — the dialect spec (grammar, normalization, round-trip contract).
-- `.claude/docs/meno/meno-astro-api.md` — the `meno-astro` package API + status.
-- the **`/meno-astro` skill** (`.claude/commands/meno-astro.md`) — copy-pasteable authoring cheat-sheet.
+- **CMS template pages** (`src/pages/<collection>/[slug].astro`) — a page with `meta.source === "cms"` +
+  a `meta.cms` schema (the schema lives there, **not** `content.config.ts`); plain fields render via
+  `{i18n(cms.field)}`, rich-text via `<Fragment set:html={richTextWithComponents(cms.field,
+  cmsComponents)} />` (tripwire 8). The skill has the full skeleton + the data-only / RSS variants.
+- the **`/meno-astro` skill** (`.claude/commands/meno-astro.md`) — the full authoring cheat-sheet: exact
+  forms for islands & custom components, prop-variant / component-root styling
+  (`variants()` / `cx()` / `inlineStyle()`), `LocaleList`, verbatim-JS markers, the CMS template skeleton,
+  and the complete node-form detail with round-trip caveats.
+- `.claude/docs/meno/meno-astro-dialect.md` — the dialect spec (grammar, normalization, the round-trip
+  contract) — for deep "will this round-trip?" questions.
+- `.claude/docs/meno/meno-astro-api.md` — the `meno-astro` package API + the Studio dev-server API surface.
+- `.claude/docs/meno/meno-migration-docs.md` — **read this first before migrating an imported pure-CSS
+  site (Webflow export etc.) into Meno components.** The end-to-end playbook + hard-won runtime gotchas
+  the specs omit: utility CSS is generated by parsing each `.astro` into the model (a file that fails to
+  parse silently gets **no CSS**); the parser's **no-trailing-comma / no-shorthand** rule; when to use
+  `variants()` vs `style()` (**token colors work only via `style()`**, never `variants()`); the `border`
+  gotcha; and the parse/emit checker to run after every component edit.

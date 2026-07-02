@@ -1,12 +1,12 @@
 ---
-description: Refresh `variables.json` (typography + layout tokens) and `colors.json` (brand colors) from a live URL, without touching pages or components. Useful when the brand changes and you want to re-pull tokens after the initial `/import-site`, or to seed tokens before manually composing a project. Preserves any keys you've added by hand — only writes detected tokens.
+description: Refresh `src/styles/theme.css` (brand colors + typography/layout tokens) from a live URL, without touching pages or components. Useful when the brand changes and you want to re-pull tokens after the initial `/import-site`, or to seed tokens before manually composing a project. Preserves any tokens you've added by hand — only writes detected tokens.
 allowed-tools: Bash, Read, Write, Edit
 argument-hint: "<url>"
 ---
 
 # /import-design-tokens $ARGUMENTS
 
-You have been asked to extract typography and color tokens from a live URL and merge them into the project's `variables.json` and `colors.json`, without touching any other project files.
+You have been asked to extract typography and color tokens from a live URL and merge them into the project's single token stylesheet `src/styles/theme.css`, without touching any other project files.
 
 ## What to do
 
@@ -67,33 +67,37 @@ You have been asked to extract typography and color tokens from a live URL and m
 
    For colors, materialize the brand tokens you can name with confidence (primary / accent / surface / text / border / muted). Leave anything ambiguous alone.
 
-7. **Merge — do NOT overwrite the whole file.** Both `variables.json` and `colors.json` may contain hand-added keys; preserve them.
+   These all go into `src/styles/theme.css`: colors as custom properties on `:root` under a `/* Colors: <theme> */` section (additional themes as `[theme="dark"] { … }` blocks), and typography/layout vars as plain custom properties on `:root` grouped under `/* Font Family */`, `/* Font Size */`, `/* Line Height */`, `/* Font Weight */` comment sections. The comment section IS the token's group — there is no separate label/`type`/`group`/`cssVar` field; a token's `--name` is its identity. Write only base values; Meno regenerates the responsive `@media` blocks from `project.config.json`.
+
+7. **Merge — do NOT overwrite the whole file.** `src/styles/theme.css` may contain hand-added tokens; preserve them.
 
    ```bash
-   # If variables.json doesn't exist, create with detected keys.
-   # If it does exist, read it, deep-merge detected keys (existing values win
-   # if the user already set them — i.e. only ADD missing keys; do not
-   # overwrite present ones), write back.
+   # If src/styles/theme.css doesn't exist, create it with the detected tokens
+   # (colors on :root under a `/* Colors: <theme> */` section, variables on :root
+   # grouped under `/* Font Size */`, `/* Font Family */`, … comment sections).
+   # If it does exist, read it and only ADD custom properties whose --name isn't
+   # already declared — existing declarations win, never overwrite a token the
+   # user already set. Then write the file back.
    ```
 
-   Use the Read tool to load the existing file, mutate the in-memory object, and Write the result back. Track every key you wrote vs every key already present.
+   Use the Read tool to load the existing stylesheet, splice the missing custom properties into the right comment section, and Write the result back. Track every `--name` you wrote vs every one already present.
 
-8. **Do NOT call `/api/save-page`, `/api/save-component`, or any other write route.** Pure file write to `variables.json` + `colors.json`. The Studio dev server's file-watcher picks them up automatically on next HMR cycle.
+8. **Do NOT call `/api/save-page`, `/api/save-component`, or any other write route.** Pure file write to `src/styles/theme.css`. The Studio dev server's file-watcher picks it up automatically on next HMR cycle.
 
 9. **Print a summary.** Example:
 
    ```
    /import-design-tokens — https://acme.com
 
-   📝 variables.json
-       + --font-family-sans       "Inter, system-ui, sans-serif"
-       + --font-heading-xl        "clamp(2rem, 4vw, 3.5rem)"
-       + --line-height-tight      "1.1"
-       = --font-weight-regular    (already present, preserved)
-   🎨 colors.json
-       + --brand-primary          "#4F46E5"
-       + --surface-1              "#FFFFFF"
+   🎨 src/styles/theme.css — colors (:root)
+       + --brand-primary          #4F46E5
+       + --surface-1              #FFFFFF
        = --text-primary           (already present, preserved)
+   📝 src/styles/theme.css — variables (:root)
+       + --font-family-sans       Inter, system-ui, sans-serif   /* Font Family */
+       + --font-heading-xl        clamp(2rem, 4vw, 3.5rem)       /* Font Size */
+       + --line-height-tight      1.1                            /* Line Height */
+       = --font-weight-regular    (already present, preserved)
 
    📊 Added: 12   Preserved: 4   Skipped: 3 (ambiguous)
 

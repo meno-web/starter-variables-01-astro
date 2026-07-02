@@ -31,10 +31,10 @@ Declared in `packages/astro/package.json`:
 | `meno-astro/dialect` | `lib/dialect/index.ts` | The codec: `emit`, `parse`, `normalizeModel`. Editor/build-only. |
 | `meno-astro/server` | `lib/server/index.ts` | Filesystem providers + conversion + format detection + loaders (`loadI18nConfig`, `loadSiteUrl`, `loadSlugMappings`, …). Server/build-only. |
 | `meno-astro/integration` | `lib/integration/index.ts` | The `meno()` Astro integration (default export): wires i18n routing + injects the locale middleware. |
-| `meno-astro/components` | `lib/components/index.ts` | The `.astro` runtime components emitted markup imports: `BaseLayout`, `Link`, `Embed`, `LocaleList`. |
+| `meno-astro/components` | `lib/components/index.ts` | The `.astro` runtime components emitted markup imports: `BaseLayout`, `Link`, `Embed`, `LocaleList`, `MenoImage`, `Markdown`. |
 | `meno-astro/runtime/localeMiddleware` | `lib/runtime/localeMiddleware.ts` | The injected middleware module (`onRequest`) the integration points Astro at. |
 
-`dialectVersion` (a `const` string, currently `'0.1.3'`) is exported from the root entry.
+`dialectVersion` (a `const` string, currently `'0.1.4'`) is exported from the root entry.
 It is written into generated projects so a project can be migrated forward if the on-disk
 dialect format evolves. It is part of the package's **semver contract**: a change to the
 emitted dialect shape that older `parse()` cannot read back must bump `dialectVersion`.
@@ -47,7 +47,7 @@ emitted dialect shape that older `parse()` cannot read back must bump `dialectVe
 
 | Export | Type | Description |
 |---|---|---|
-| `dialectVersion` | `'0.1.3'` (literal `const`) | On-disk dialect format version; semver-tracked. 0.1.3 = rich-text text children emit `richTextWithComponents(…, cmsComponents)` + the generated registry import. |
+| `dialectVersion` | `'0.1.7'` (literal `const`) | On-disk dialect format version; semver-tracked (see the full history beside the `const` in `lib/index.ts`). 0.1.3 = rich-text text children emit `richTextWithComponents(…, cmsComponents)` + the generated registry import. 0.1.5 = SSR page type (`loadPageData`). 0.1.6 = Sanity list source (`getSanityData`). 0.1.7 = embedded components also render in a `type:"rich-text"` **prop** (`set:html={richTextWithComponents(prop, cmsComponents)}`) and in an **embed node** bound to a rich-text field (`components={cmsComponents}`). |
 
 ### Model types (re-exported from `meno-core/shared/types`)
 
@@ -61,7 +61,7 @@ emitted dialect shape that older `parse()` cannot read back must bump `dialectVe
 | `MenoStyle` | `ResponsiveStyleObject \| StyleObject` | The style payload carried verbatim in `style({...})` calls. |
 | `MenoProps` | `Record<string, PropDefinition>` | A component's prop definitions, carried by the `resolveProps(Astro, {…})` argument. |
 | `MenoPageMeta` | `NonNullable<JSONPage['meta']>` | A page's `const meta` payload (TS type only — do **not** `satisfies`-annotate `.astro` frontmatter with it; the `satisfies` operator breaks `astro build`). |
-| `MenoComponentMeta` | `Pick<StructuredComponentDefinition, 'category' \| 'acceptsStyles' \| 'libraries'>` | A component's non-interface metadata, carried by `__meno`. (`defineVars` is **not** here — a component's JS is emitted as `<script define:vars={{…}}>`, native Astro, and reconstructed on parse.) |
+| `MenoComponentMeta` | `Pick<StructuredComponentDefinition, 'category' \| 'acceptsStyles' \| 'libraries'>` | A component's non-interface metadata, carried by `__meno`. **`category` is parsed and round-trips but does NOT drive Studio grouping** — grouping is by the component's folder under `src/components/` (the loader's `_category`), so the `category` field is effectively cosmetic. (`defineVars` is **not** here — a component's JS is emitted as `<script define:vars={{…}}>`, native Astro, and reconstructed on parse.) |
 
 ### Runtime helpers — implemented
 
@@ -69,6 +69,14 @@ emitted dialect shape that older `parse()` cannot read back must bump `dialectVe
 |---|---|---|
 | `resolveProps` | `resolveProps<const T extends MenoProps>(astro: { props }, defs: T): InferMenoProps<T> & { class: string }` | The single authoritative prop block for every component. Its `defs` argument is the prop definition the dialect parser reads back; at runtime it merges `Astro.props` over each def's `default` and always supplies `class` (defaulting to `""`). The returned locals' TS types are **inferred** from `defs` (number/boolean/`{ href; target? }`/`unknown[]`/a `select` options union / `string`), replacing the old hand-written `interface Props`. |
 | `list` | `list<T>(source: T[] \| null \| undefined, opts?: { offset?: number; limit?: number }): T[]` | Tolerant prop-list helper used by generated `.astro`: `list(items, { limit }).map(…)`. Returns `[]` for null/undefined; applies `offset` then `limit`. |
+
+> **List props (`type: "list"`).** A list prop is the one `PropDefinition` variant with extra
+> structure: `itemSchema` is **required** (a `Record<string, PropDefinition>` describing one item's
+> fields) and `default` is an **`Array<Record<string, scalar | { href; target? } | i18n | null>>`** —
+> an array of objects, *not* the bare `unknown[]` the `resolveProps` inferred-type note above implies.
+> A bare-string `default` (`["First", "Second"]`) or a missing `itemSchema` passes the codec
+> round-trip **and** `astro build`, but is rejected by the editor's component-load validation with
+> `interface.<prop> — list prop requires itemSchema and an object-array default`. See dialect §5.1.
 
 > **Client-script prop injection.** A component's `def.javascript` that needs its props
 > is emitted as `<script define:vars={{ … }}>` — Astro's native directive injects those
@@ -105,6 +113,11 @@ that module is unavailable.
 > render-path CSS flush and the `meno-astro/components` components below.
 
 ### style runtime resolver + CSS collector (`lib/runtime/style.ts`) — implemented (PoC)
+
+> **Authoring note (class-first).** Static styling is authored as a literal utility `class="p-[24px]"`
+> string — the canonical, round-tripping form; the build generates its CSS directly from the class. The
+> `style()` / `cx()` / `variants()` helpers below resolve only the **prop-bound / `{{template}}` /
+> `_mapping` / component-root** rump that *can't* be a static class.
 
 The emitter-facing `style()` resolver. **PoC scope: the prop-bound `_mapping` resolver
 (the "option A" design) + a CSS collector — proven by `lib/style.test.ts`. The render-path
@@ -173,7 +186,7 @@ serializes to placeholder markers
 |---|---|---|
 | `toHtmlString` | `(value: unknown) => string` | Normalize any stored rich-text shape (plain HTML string / raw TipTap doc / `{ __richtext__, html }` / `{ __richtext__, format:'tiptap', json }`) to an HTML string — never `[object Object]`. Expands URL-bearing embed markers (Youtube/Vimeo: a `url`/`src` prop) to their responsive iframe (`expandRichTextEmbeds`); other markers pass through. Used by `Embed.astro` and `resolveProps` (rich-text props). |
 | `richText` | `(value: unknown) => string` | The synchronous pipeline: `i18n()` locale resolve → `toHtmlString` → internal `<a href>`s localized (`localizeRichTextLinks`). Legacy emit target (`set:html={richText(cms.field)}`) — still parsed, no longer emitted. |
-| `richTextWithComponents` | `(value: unknown, components: Record<string, unknown>) => Promise<string>` | **The current emit target** for a rich-text field bound as a text child: runs `richText()`, then renders each remaining `menoComponent` marker to real HTML via Astro's **Container API** (`experimental_AstroContainer`, lazily created once per process, dynamic-imported so `astro` stays out of the static graph) against `components` — the converter-generated registry `src/cmsComponents.ts`. Unknown components / malformed props keep their marker (meno-core SSR parity); a component render error propagates. `set:html` awaits the returned promise natively. |
+| `richTextWithComponents` | `(value: unknown, components: Record<string, unknown>) => Promise<string>` | **The current emit target** for every way a rich-text value renders — a field bound as a **text child**, a `type:"rich-text"` **prop** (`<Fragment set:html={richTextWithComponents(prop, cmsComponents)} />`), and (with the registry passed as `components={cmsComponents}`) an **embed node** bound to a rich-text field: runs `richText()`, then renders each remaining `menoComponent` marker to real HTML via Astro's **Container API** (`experimental_AstroContainer`, lazily created once per process, dynamic-imported so `astro` stays out of the static graph) against `components` — the converter-generated registry `src/cmsComponents.ts`. Unknown components / malformed props keep their marker (meno-core SSR parity); a component render error propagates. `set:html` awaits the returned promise natively. |
 
 Why container-rendered markup is correct on any page: utility/interactive CSS is one
 **build-time global stylesheet** scanned from every `.astro` source (the `meno()`
@@ -220,10 +233,12 @@ UNVERIFIED** pending a real `astro build`.
 
 | Component | Role |
 |---|---|
-| `BaseLayout.astro` | Page shell. `<html lang={Astro.currentLocale ?? <defaultLocale>}>`; `<head>` renders `meta.title` / `meta.description` **resolved through `i18n()`** (they may be i18n values); `<body><slot /></body>`; after the slot, drains `flushCollectedStyles()` into a `<style set:html>` so collected CSS lands in the page. |
+| `BaseLayout.astro` | Page shell. `<html lang={Astro.currentLocale ?? <defaultLocale>}>`; `<head>` renders `meta.title` / `meta.description` **resolved through `i18n()`** (they may be i18n values), favicons (`loadIconsConfig`, light/dark split), canonical + hreflang links, and the global utility stylesheet. Also wires the **head/SEO/config features**: `<ClientRouter>` when `meta.viewTransitions`, `<meta name="robots" content="noindex">` when `meta.noindex`, and raw author `customCode` (project-wide `loadCustomCode` merged with `meta.customCode`) injected into `<head>` / after `<body>` / before `</body>`. |
+| `MenoImage.astro` | Optimized-image wrapper around Astro's `astro:assets` `<Image>`. The render target for a local `<img>` node, which optimizes by default (dialect §4.1; opt out with `data-meno-optimize="false"`). Remote sources need an allow-listed host in `project.config.json` `image.domains`. |
+| `Markdown.astro` | Renders a `markdown` node's verbatim `source` to HTML at build via `set:html={renderMarkdown(source)}` (dialect §4.8). |
 | `LocaleList.astro` | Locale switcher. One link per `config.locales` (via `loadI18nConfig(process.cwd())`), each pointing at the current page in that locale, **slug-translated** through the project slug map (`localeListItems`: `/about` ↔ `/pl/o-nas`; default locale un-prefixed), marking `Astro.currentLocale` (`aria-current`/`is-active`). CMS pages with `exactLocales` drop draft-hidden locales (their URLs are never built). |
 | `Link.astro` | `<a href={href} class={class} {...rest}><slot /></a>` with the flattened href **localized to the active render locale** (`localizeHref` — `/about` renders as `/pl/o-nas` on pl pages). |
-| `Embed.astro` | Raw-HTML injector (`set:html`; wrapped in a `<div>` only when a `class`/attrs are supplied, else a bare `<Fragment>`), with internal `<a href>`s localized (`localizeRichTextLinks`). The render form for an **embed node** bound to a CMS `rich-text` field — `<Embed html={i18n(cms.field)} />` — it normalizes a TipTap-doc / `{ __richtext__, … }` value to HTML (via `toHtmlString`) before injecting, so a plain `{i18n(cms.field)}` (which prints `[object Object]`) is never used for rich-text. (A rich-text field bound as a **text child** emits `<Fragment set:html={richTextWithComponents(cms.field, cmsComponents)} />` instead — see the rich-text render pipeline section above.) |
+| `Embed.astro` | Raw-HTML injector (`set:html`; wrapped in a `<div>` only when a `class`/attrs are supplied, else a bare `<Fragment>`), with internal `<a href>`s localized (`localizeRichTextLinks`). The render form for an **embed node** bound to a CMS `rich-text` field — `<Embed html={i18n(cms.field)} components={cmsComponents} />` — it renders the value via `richTextWithComponents` when the emitter passes the registry (so embedded `menoComponent` components render too), otherwise (verbatim / URL / non-rich-text embeds, no `components`) it normalizes via `richText`/`toHtmlString`; either way a plain `{i18n(cms.field)}` (which prints `[object Object]`) is never used for rich-text. The `components` attr is destructured out so it never lands on the DOM, and is dropped on parse. (A rich-text field bound as a **text child** emits `<Fragment set:html={richTextWithComponents(cms.field, cmsComponents)} />` instead — see the rich-text render pipeline section above.) |
 
 ### CMS query parser (re-exported from `meno-core/shared/cmsQueryParser`) — implemented
 
@@ -247,6 +262,7 @@ The thin, scope-aware wrappers the generated markup calls (the rest of the
 | `embedHtml(value, props?)` | `(structured, props?) => string` | Resolve a structured embed payload to an HTML string. |
 | `queryList(items, query)` | `(any[], query) => any[]` | In-memory filter/sort/limit over an already-fetched list (nested collection lists filtered by an outer loop var). |
 | `inlineStyle(decls, props?)` | `(Record<string, string>, props?) => string \| undefined` | Render prop-bound root styles as an inline `style=…`, suppressing declarations the instance class overrides (so instance utility classes win). |
+| `renderMarkdown(source)` | `(string) => string` | Render a `markdown` node's verbatim Markdown `source` to HTML at build/SSR (markdown-it, mirroring meno-core's shared config). Used by `Markdown.astro` (dialect §4.8). |
 
 ---
 
@@ -318,6 +334,20 @@ components from `src/components`:
 > `ComponentService`'s JSON path. Making component saves write `.astro` (a format-aware
 > components dir) is the remaining piece — see [Status](#status).
 
+### Config & SEO loaders (`lib/server/*`) — implemented
+
+Mtime-memoized `project.config.json` readers consumed by `BaseLayout` (per render) and the
+`meno()` integration (`astro:config:setup`). All **never throw** — a missing/unparseable
+config degrades to "feature off". Each is also re-exported from `meno-astro/server`.
+
+| Export | Signature | Description |
+|---|---|---|
+| `loadCustomCode` | `(projectRoot) => { head?, bodyStart?, bodyEnd? }` | Project-wide `customCode` HTML. The dialect twin of meno-core SSR's custom-code block. |
+| `mergeCustomCode` | `(global, page?) => { head, bodyStart, bodyEnd }` | Merge project-wide + a page's `meta.customCode` (global first, page appended), the order `BaseLayout` injects. |
+| `loadAstroConfigExtras` | `(projectRoot) => { redirects?, image?, prefetch?, devToolbar? }` | Maps Studio settings onto **Astro config** options the integration applies via `updateConfig`: `redirects` (`[{from,to,status?}]` → Astro's map), `image.domains` (remote hosts the optimizing `<MenoImage>` may process), `prefetch` (Meno `PrefetchConfig` → Astro native prefetch), `devToolbar`. Only keys actually set are returned. **In play mode the integration drops `prefetch` and forces `devToolbar` to the explicit setting** (Astro defaults the toolbar on in dev). |
+| `loadSitemapMeta` | `(projectRoot) => Map<routePath, { priority?, changefreq?, exclude? }>` | Per-page `meta.sitemap` collected from every `src/pages/**.astro` (build-only), keyed by normalized route path incl. every locale variant — consumed by the `sitemap.xml` hook. `exclude` drops the page; `priority` (0..1) / `changefreq` (enum) annotate it. |
+| `loadIconsConfig` | `(projectRoot) => { favicon?, faviconDark?, appleTouchIcon? }` | Project `icons` → BaseLayout `<link rel="icon">` (light/dark split when both favicon + faviconDark set). |
+
 ### `detectProjectFormat` + dir helpers — implemented
 
 | Export | Signature | Description |
@@ -339,11 +369,14 @@ today.
 | `convertProject` | `(srcRoot: string, destRoot: string) => Promise<ConvertResult>` | Opt-in JSON → `.astro` converter. Emits a parallel project under `destRoot` with pages/components as dialect `.astro` (under `src/`), writes `project.config.json` with `format: "astro"`, migrates CMS to Astro content collections, and copies assets + config verbatim. Uses the same `emit` the editor uses on save, so output round-trips. |
 | `ConvertResult` | `{ pages: number; components: number; cmsCollections: number; destRoot: string }` (type) | Counts of converted files + the resolved destination. |
 
-Copied verbatim: `colors.json`, `variables.json`, `components.config.json`, and the
-`images` / `fonts` / `icons` directories. **CMS → Astro content collections:** CMS items
-copy to `src/content/<collection>/` (Astro's content layer), CMS template pages emit as
-`src/pages/<collection>/[slug].astro` dynamic routes (with `getStaticPaths`), and a
-`src/content.config.ts` is generated. The root `templates/` tree is retired.
+Copied verbatim: `components.config.json` and the `images` / `fonts` / `icons` directories.
+**Design tokens → one stylesheet:** theme colors + CSS variables are written to a single
+`src/styles/theme.css` (the source of truth) rather than copied as the legacy `colors.json` /
+`variables.json` — those JSON token files are retired for astro projects. **CMS → Astro
+content collections:** CMS items copy to `src/content/<collection>/` (Astro's content
+layer), CMS template pages emit as `src/pages/<collection>/[slug].astro` dynamic routes
+(with `getStaticPaths`), and a `src/content.config.ts` is generated. The root `templates/`
+tree is retired.
 
 ---
 
@@ -421,17 +454,51 @@ A concise implemented / pending map. Verified against the source on
   `ComponentService`).
 - **`.astro` file-watcher** — provider-based page reload covers externally-edited
   `.astro` files (`FileWatcherService` → `pageService.reloadPageFromDisk`).
+- **Head / SEO / project config** — `meta.viewTransitions` (`<ClientRouter>`), `meta.noindex`,
+  per-page `meta.sitemap` (priority/changefreq/exclude), page + project `customCode`
+  injection, favicons (`loadIconsConfig`), and the `project.config.json`-driven Astro options
+  `redirects` / `image.domains` / `prefetch` / `devToolbar` (`loadAstroConfigExtras`,
+  applied at `config:setup`; play drops prefetch + forces the explicit devToolbar).
+- **Optimized images** — a local `<img>` → `<MenoImage>` (`astro:assets`) by default (opt out with
+  `data-meno-optimize="false"`); remote/`data:`/`.svg` stay bare unless marked `="true"`, remote
+  sources gated by `image.domains`.
+- **Markdown node** — `type:"markdown"` verbatim source → `<Markdown>` / `renderMarkdown()`.
+- **Astro Islands** — BYO React/Preact/Vue/Svelte components under `src/islands/`; the
+  `meno()` integration auto-provisions the `@astrojs/<fw>` renderer (dialect §4.7).
+- **Custom components** — `type:"custom"`, an opaque foreign `.astro` under `src/custom/`. A
+  plain native Astro import (no renderer, **no provisioning**, ships in the app with no
+  `meno-astro` publish); Meno passes only explicit props + slotted children and treats the
+  internals as a server-only black box (dialect §4.9; real-build e2e `custom-e2e.mjs`). The
+  server-only sibling of an island.
+- **SSR output + adapter** — declared in **`project.config.json`** as `"output": "server"` +
+  `"adapter": { "name": "node" | "cloudflare" | "netlify" | "vercel", "mode"?: "standalone" |
+  "middleware" }` (read by `loadAstroConfigExtras`). `meno()` sets `output` and registers
+  `@astrojs/<adapter>` for you (provisioned via `MENO_ASTRO_ADAPTER`); a missing adapter degrades
+  to a clean static build. See the ⚠️ rule below — **never import the adapter in `astro.config.mjs`.**
+
+> ⚠️ **Editing `astro.config.mjs` — never add an adapter or any 3rd-party import.** The Meno preview
+> runs `astro dev` against a **shared runtime store** that only carries `astro`, `meno-astro`,
+> `meno-core` (+ reserved). So `astro.config.mjs` may **only import from `astro/config`, `meno-astro`,
+> or `meno-astro/integration`** (`ALLOWED_CONFIG_IMPORTS`). An SSR adapter (`@astrojs/node`/…), another
+> integration, or any foreign package isn't in the store, so the `inspectAstroConfig` guard refuses the
+> preview: *"This project has a custom astro.config that imports \"<pkg>\", which the shared Astro
+> preview runtime doesn't include."* **Configure SSR in `project.config.json` (above), not the config.**
+> The canonical config stays `defineConfig({ integrations: [meno()] })` (+ optional `env: { schema }`
+> for `astro:env`, allowed because `envField` is from `astro/config`).
 
 ### NOT yet implemented (in-progress / pending)
 
 - **Static `href` attributes on plain nodes** are not localized at render (link nodes and
   embed HTML are); needs an emit-side wrapper.
-- **Region tracking / escape hatches — partial.** `verbatim` regions are populated:
+- **Region tracking / escape hatches — mostly done.** `verbatim` regions are populated:
   arbitrary JS in a `{ … }` value/attribute/condition that the template engine can't
   evaluate (function/method calls, etc.) is preserved as a `{ _code, expr }` marker, round-
-  trips, renders natively at build, and is reported as a `kind: 'verbatim'` region. Still
-  pending: `rawClass` (a raw Tailwind `class="…"`) and `editable`-span tracking, plus
-  arbitrary frontmatter passthrough — those non-dialect spans do not yet round-trip.
+  trips, renders natively at build, and is reported as a `kind: 'verbatim'` region.
+  Hand-authored frontmatter is captured as a verbatim `_frontmatter` passthrough block and
+  round-trips (the whole-component escape hatch is the `custom` node, dialect §4.9; a fully
+  non-dialect page opens read-only). A static `class="…"` (utility + foreign tokens) round-trips via
+  `attributes.class` (the canonical styling form); only its distinct `rawClass` *region report* and
+  `editable`-span tracking are still pending.
 
 ### Known semantic gaps in current output
 

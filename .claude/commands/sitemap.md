@@ -65,7 +65,7 @@ You have been asked to inspect the sitemap of a live website without importing a
 ## What you do NOT do
 
 - You do NOT call `/api/import-website`, `/extract`, `/analyze-page`, or any other extract route — that's `/import-homepage` / `/import-site`.
-- You do NOT modify `src/pages/`, `src/components/`, `variables.json`, `colors.json`, or any project file.
+- You do NOT modify `src/pages/`, `src/components/`, `src/styles/theme.css`, or any project file.
 - You do NOT start the Playwright sidecar — sitemap fetch is a pure HTTP GET, no headless browser needed.
 
 Re-running `/sitemap <url>` is safe and cheap. It overwrites `sitemap.json` each time.
