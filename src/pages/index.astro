@@ -1,7 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import { getCollectionList, i18n, style } from 'meno-astro';
-import { BaseLayout, Link } from 'meno-astro/components';
+import { BaseLayout, Link, MenoImage } from 'meno-astro/components';
 import FaqQuestion from '../components/FaqQuestion.astro';
 import FeatureCard from '../components/FeatureCard.astro';
 import Footer from '../components/Footer.astro';
@@ -36,23 +36,7 @@ const blogList = await getCollectionList("blog", { sort: { field: "_createdAt", 
             tablet: {},
             mobile: {}
           })}>
-          <h1 class={style({
-              base: {
-                fontSize: "var(--h-fs)",
-                letterSpacing: "var(--h-ls)",
-                fontWeight: "var(--h-fw)",
-                marginBottom: "var(--h-m)",
-                textAlign: "center",
-                lineHeight: "var(--h-lh)",
-                color: "var(--text)",
-                maxWidth: "725px",
-                flexDirection: "row",
-                justifyContent: "flex-start",
-                alignItems: "stretch"
-              },
-              tablet: {},
-              mobile: {}
-            })}><Fragment set:html={`<!--MENO_RAW_HTML-->Everything you <span class="custom-span">need</span> to build professional website`} /></h1>
+          <h1 class="mb-(--h-m) flex-row justify-start items-stretch max-w-[726px] text-text text-(length:--h-fs) font-(number:--h-fw) text-center leading-(--h-lh) tracking-(--h-ls)"><Fragment set:html={`Everything you <span class="custom-span">need</span> to build professional website`} /></h1>
           <p class={style({
               base: {
                 fontSize: "var(--t-fs)",
@@ -133,7 +117,7 @@ const blogList = await getCollectionList("blog", { sort: { field: "_createdAt", 
             },
             tablet: {},
             mobile: {}
-          })}><Fragment set:html={`<!--MENO_RAW_HTML-->This is <span class="custom-span">features</span> headline`} /></h2>
+          })}><Fragment set:html={`This is <span class="custom-span">features</span> headline`} /></h2>
         <p class={style({
             base: {
               fontSize: "var(--t-fs)",
@@ -294,7 +278,7 @@ const blogList = await getCollectionList("blog", { sort: { field: "_createdAt", 
                 tablet: {},
                 mobile: {}
               })}>
-              <img class={style({
+              <MenoImage class={style({
                   base: { aspectRatio: "16 / 10", objectFit: "cover" },
                   tablet: {},
                   mobile: {}
