@@ -1,95 +1,22 @@
 ---
-import { resolveProps, style } from 'meno-astro';
+import { cx, resolveProps, style } from 'meno-astro';
 import { Link } from 'meno-astro/components';
 
 const __props = resolveProps(Astro, {});
 const { class: className } = __props;
 ---
-<footer class={style({
-    base: {
-      padding: "var(--s-p)",
-      backgroundColor: "var(--bg)",
-      borderTop: "1px solid var(--border)"
-    },
-    tablet: {},
-    mobile: {}
-  }, __props, { root: true, label: "Footer" })}>
-  <div class={style({
-      base: { display: "block", maxWidth: "var(--c-s)", margin: "auto" },
-      tablet: {},
-      mobile: {}
-    }, __props, { label: "Container" })}>
-    <div class={style({
-        base: {
-          display: "grid",
-          gridTemplateColumns: "2fr 1fr 1fr 1fr",
-          gap: "40px"
-        },
-        tablet: { gridTemplateColumns: "1fr 1fr" },
-        mobile: { gridTemplateColumns: "1fr" }
-      }, __props, { label: "TopRow" })}>
+<footer class={cx(style({}, __props, { label: "Footer" }), "p-(--s-p) bg-bg border-t-[1px_solid_var(--border)]", className)}>
+  <div class={style({}, __props, { label: "Container" }) + " m-auto block max-w-(--c-s)"}>
+    <div class={style({}, __props, { label: "TopRow" }) + " grid gap-10 grid-cols-[2fr_1fr_1fr_1fr] max-lg:grid-cols-[1fr_1fr] max-sm:grid-cols-[1fr]"}>
       <div class={style({}, __props, { label: "Brand" })}>
-        <span class={style({
-            base: {
-              display: "block",
-              fontSize: "22px",
-              fontWeight: "var(--h-fw)",
-              letterSpacing: "var(--h-ls)",
-              color: "var(--text)",
-              marginBottom: "12px"
-            },
-            tablet: {},
-            mobile: {}
-          }, __props)}>Starter</span>
-        <p class={style({
-            base: {
-              fontSize: "var(--t-fs)",
-              letterSpacing: "var(--t-ls)",
-              fontWeight: "var(--t-fw)",
-              lineHeight: "var(--t-lh)",
-              color: "var(--muted)",
-              maxWidth: "320px",
-              margin: "0"
-            },
-            tablet: {},
-            mobile: {}
-          }, __props)}>Short tagline that previews how this footer copy reads in the editor.</p>
+        <span class="mb-3 block text-text text-[22px] font-(number:--h-fw) tracking-(--h-ls)">Starter</span>
+        <p class="m-[0] max-w-80 text-muted text-(length:--t-fs) font-(number:--t-fw) leading-(--t-lh) tracking-(--t-ls)">Short tagline that previews how this footer copy reads in the editor.</p>
       </div>
       <div class={style({}, __props, { label: "Column1" })}>
-        <span class={style({
-            base: {
-              display: "block",
-              fontSize: "var(--s-fs)",
-              letterSpacing: "var(--s-ls)",
-              fontWeight: "var(--s-fw)",
-              textTransform: "var(--subtitle)",
-              color: "var(--text)",
-              marginBottom: "16px"
-            },
-            tablet: {},
-            mobile: {}
-          }, __props)}>Product</span>
-        <ul class={style({
-            base: {
-              listStyle: "none",
-              display: "flex",
-              flexDirection: "column",
-              gap: "10px",
-              padding: "0",
-              margin: "0"
-            }
-          }, __props)}>
+        <span class="mb-4 block text-text text-(length:--s-fs) font-(number:--s-fw) [text-transform:var(--subtitle)] tracking-(--s-ls)">Product</span>
+        <ul class="p-[0] m-[0] flex flex-col gap-2.5 [list-style:none]">
           <li>
-            <Link href="#features" class={style({
-                base: {
-                  color: "var(--muted)",
-                  fontSize: "var(--t-fs)",
-                  letterSpacing: "var(--t-ls)",
-                  fontWeight: "var(--t-fw)",
-                  textDecoration: "none",
-                  transition: "color 0.2s"
-                }
-              }, __props, {
+            <Link href="#features" class={style({}, __props, {
                 interactive: [
                   {
                     name: "hover",
@@ -98,19 +25,10 @@ const { class: className } = __props;
                     style: { base: { color: "var(--text)" } }
                   }
                 ]
-              })}>Features</Link>
+              }) + " text-muted text-(length:--t-fs) font-(number:--t-fw) no-underline tracking-(--t-ls) transition-[color_0.2s]"}>Features</Link>
           </li>
           <li>
-            <Link href="#pricing" class={style({
-                base: {
-                  color: "var(--muted)",
-                  fontSize: "var(--t-fs)",
-                  letterSpacing: "var(--t-ls)",
-                  fontWeight: "var(--t-fw)",
-                  textDecoration: "none",
-                  transition: "color 0.2s"
-                }
-              }, __props, {
+            <Link href="#pricing" class={style({}, __props, {
                 interactive: [
                   {
                     name: "hover",
@@ -119,19 +37,10 @@ const { class: className } = __props;
                     style: { base: { color: "var(--text)" } }
                   }
                 ]
-              })}>Pricing</Link>
+              }) + " text-muted text-(length:--t-fs) font-(number:--t-fw) no-underline tracking-(--t-ls) transition-[color_0.2s]"}>Pricing</Link>
           </li>
           <li>
-            <Link href="#integrations" class={style({
-                base: {
-                  color: "var(--muted)",
-                  fontSize: "var(--t-fs)",
-                  letterSpacing: "var(--t-ls)",
-                  fontWeight: "var(--t-fw)",
-                  textDecoration: "none",
-                  transition: "color 0.2s"
-                }
-              }, __props, {
+            <Link href="#integrations" class={style({}, __props, {
                 interactive: [
                   {
                     name: "hover",
@@ -140,45 +49,15 @@ const { class: className } = __props;
                     style: { base: { color: "var(--text)" } }
                   }
                 ]
-              })}>Integrations</Link>
+              }) + " text-muted text-(length:--t-fs) font-(number:--t-fw) no-underline tracking-(--t-ls) transition-[color_0.2s]"}>Integrations</Link>
           </li>
         </ul>
       </div>
       <div class={style({}, __props, { label: "Column2" })}>
-        <span class={style({
-            base: {
-              display: "block",
-              fontSize: "var(--s-fs)",
-              letterSpacing: "var(--s-ls)",
-              fontWeight: "var(--s-fw)",
-              textTransform: "var(--subtitle)",
-              color: "var(--text)",
-              marginBottom: "16px"
-            },
-            tablet: {},
-            mobile: {}
-          }, __props)}>Company</span>
-        <ul class={style({
-            base: {
-              listStyle: "none",
-              display: "flex",
-              flexDirection: "column",
-              gap: "10px",
-              padding: "0",
-              margin: "0"
-            }
-          }, __props)}>
+        <span class="mb-4 block text-text text-(length:--s-fs) font-(number:--s-fw) [text-transform:var(--subtitle)] tracking-(--s-ls)">Company</span>
+        <ul class="p-[0] m-[0] flex flex-col gap-2.5 [list-style:none]">
           <li>
-            <Link href="#about" class={style({
-                base: {
-                  color: "var(--muted)",
-                  fontSize: "var(--t-fs)",
-                  letterSpacing: "var(--t-ls)",
-                  fontWeight: "var(--t-fw)",
-                  textDecoration: "none",
-                  transition: "color 0.2s"
-                }
-              }, __props, {
+            <Link href="#about" class={style({}, __props, {
                 interactive: [
                   {
                     name: "hover",
@@ -187,19 +66,10 @@ const { class: className } = __props;
                     style: { base: { color: "var(--text)" } }
                   }
                 ]
-              })}>About</Link>
+              }) + " text-muted text-(length:--t-fs) font-(number:--t-fw) no-underline tracking-(--t-ls) transition-[color_0.2s]"}>About</Link>
           </li>
           <li>
-            <Link href="/blog" class={style({
-                base: {
-                  color: "var(--muted)",
-                  fontSize: "var(--t-fs)",
-                  letterSpacing: "var(--t-ls)",
-                  fontWeight: "var(--t-fw)",
-                  textDecoration: "none",
-                  transition: "color 0.2s"
-                }
-              }, __props, {
+            <Link href="/blog" class={style({}, __props, {
                 interactive: [
                   {
                     name: "hover",
@@ -208,19 +78,10 @@ const { class: className } = __props;
                     style: { base: { color: "var(--text)" } }
                   }
                 ]
-              })}>Blog</Link>
+              }) + " text-muted text-(length:--t-fs) font-(number:--t-fw) no-underline tracking-(--t-ls) transition-[color_0.2s]"}>Blog</Link>
           </li>
           <li>
-            <Link href="#careers" class={style({
-                base: {
-                  color: "var(--muted)",
-                  fontSize: "var(--t-fs)",
-                  letterSpacing: "var(--t-ls)",
-                  fontWeight: "var(--t-fw)",
-                  textDecoration: "none",
-                  transition: "color 0.2s"
-                }
-              }, __props, {
+            <Link href="#careers" class={style({}, __props, {
                 interactive: [
                   {
                     name: "hover",
@@ -229,45 +90,15 @@ const { class: className } = __props;
                     style: { base: { color: "var(--text)" } }
                   }
                 ]
-              })}>Careers</Link>
+              }) + " text-muted text-(length:--t-fs) font-(number:--t-fw) no-underline tracking-(--t-ls) transition-[color_0.2s]"}>Careers</Link>
           </li>
         </ul>
       </div>
       <div class={style({}, __props, { label: "Column3" })}>
-        <span class={style({
-            base: {
-              display: "block",
-              fontSize: "var(--s-fs)",
-              letterSpacing: "var(--s-ls)",
-              fontWeight: "var(--s-fw)",
-              textTransform: "var(--subtitle)",
-              color: "var(--text)",
-              marginBottom: "16px"
-            },
-            tablet: {},
-            mobile: {}
-          }, __props)}>Support</span>
-        <ul class={style({
-            base: {
-              listStyle: "none",
-              display: "flex",
-              flexDirection: "column",
-              gap: "10px",
-              padding: "0",
-              margin: "0"
-            }
-          }, __props)}>
+        <span class="mb-4 block text-text text-(length:--s-fs) font-(number:--s-fw) [text-transform:var(--subtitle)] tracking-(--s-ls)">Support</span>
+        <ul class="p-[0] m-[0] flex flex-col gap-2.5 [list-style:none]">
           <li>
-            <Link href="#help" class={style({
-                base: {
-                  color: "var(--muted)",
-                  fontSize: "var(--t-fs)",
-                  letterSpacing: "var(--t-ls)",
-                  fontWeight: "var(--t-fw)",
-                  textDecoration: "none",
-                  transition: "color 0.2s"
-                }
-              }, __props, {
+            <Link href="#help" class={style({}, __props, {
                 interactive: [
                   {
                     name: "hover",
@@ -276,19 +107,10 @@ const { class: className } = __props;
                     style: { base: { color: "var(--text)" } }
                   }
                 ]
-              })}>Help Center</Link>
+              }) + " text-muted text-(length:--t-fs) font-(number:--t-fw) no-underline tracking-(--t-ls) transition-[color_0.2s]"}>Help Center</Link>
           </li>
           <li>
-            <Link href="#contact" class={style({
-                base: {
-                  color: "var(--muted)",
-                  fontSize: "var(--t-fs)",
-                  letterSpacing: "var(--t-ls)",
-                  fontWeight: "var(--t-fw)",
-                  textDecoration: "none",
-                  transition: "color 0.2s"
-                }
-              }, __props, {
+            <Link href="#contact" class={style({}, __props, {
                 interactive: [
                   {
                     name: "hover",
@@ -297,19 +119,10 @@ const { class: className } = __props;
                     style: { base: { color: "var(--text)" } }
                   }
                 ]
-              })}>Contact</Link>
+              }) + " text-muted text-(length:--t-fs) font-(number:--t-fw) no-underline tracking-(--t-ls) transition-[color_0.2s]"}>Contact</Link>
           </li>
           <li>
-            <Link href="#status" class={style({
-                base: {
-                  color: "var(--muted)",
-                  fontSize: "var(--t-fs)",
-                  letterSpacing: "var(--t-ls)",
-                  fontWeight: "var(--t-fw)",
-                  textDecoration: "none",
-                  transition: "color 0.2s"
-                }
-              }, __props, {
+            <Link href="#status" class={style({}, __props, {
                 interactive: [
                   {
                     name: "hover",
@@ -318,44 +131,15 @@ const { class: className } = __props;
                     style: { base: { color: "var(--text)" } }
                   }
                 ]
-              })}>Status</Link>
+              }) + " text-muted text-(length:--t-fs) font-(number:--t-fw) no-underline tracking-(--t-ls) transition-[color_0.2s]"}>Status</Link>
           </li>
         </ul>
       </div>
     </div>
-    <div class={style({
-        base: {
-          borderTop: "1px solid var(--border)",
-          marginTop: "48px",
-          paddingTop: "24px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        },
-        tablet: {},
-        mobile: { flexDirection: "column", gap: "16px", textAlign: "center" }
-      }, __props, { label: "BottomRow" })}>
-      <span class={style({
-          base: {
-            fontSize: "14px",
-            letterSpacing: "var(--t-ls)",
-            fontWeight: "var(--t-fw)",
-            color: "var(--muted)"
-          },
-          tablet: {},
-          mobile: {}
-        }, __props)}>© 2026 Starter. All rights reserved.</span>
-      <div class={style({ base: { display: "flex", gap: "24px" } }, __props)}>
-        <Link href="#privacy" class={style({
-            base: {
-              fontSize: "14px",
-              letterSpacing: "var(--t-ls)",
-              fontWeight: "var(--t-fw)",
-              color: "var(--muted)",
-              textDecoration: "none",
-              transition: "color 0.2s"
-            }
-          }, __props, {
+    <div class={style({}, __props, { label: "BottomRow" }) + " pt-6 mt-12 flex justify-between items-center border-t-[1px_solid_var(--border)] max-sm:flex-col max-sm:gap-4 max-sm:text-center"}>
+      <span class="text-muted text-[14px] font-(number:--t-fw) tracking-(--t-ls)">© 2026 Starter. All rights reserved.</span>
+      <div class="flex gap-6">
+        <Link href="#privacy" class={style({}, __props, {
             interactive: [
               {
                 name: "hover",
@@ -364,17 +148,8 @@ const { class: className } = __props;
                 style: { base: { color: "var(--text)" } }
               }
             ]
-          })}>Privacy policy</Link>
-        <Link href="#terms" class={style({
-            base: {
-              fontSize: "14px",
-              letterSpacing: "var(--t-ls)",
-              fontWeight: "var(--t-fw)",
-              color: "var(--muted)",
-              textDecoration: "none",
-              transition: "color 0.2s"
-            }
-          }, __props, {
+          }) + " text-muted text-[14px] font-(number:--t-fw) no-underline tracking-(--t-ls) transition-[color_0.2s]"}>Privacy policy</Link>
+        <Link href="#terms" class={style({}, __props, {
             interactive: [
               {
                 name: "hover",
@@ -383,7 +158,7 @@ const { class: className } = __props;
                 style: { base: { color: "var(--text)" } }
               }
             ]
-          })}>Terms of Service</Link>
+          }) + " text-muted text-[14px] font-(number:--t-fw) no-underline tracking-(--t-ls) transition-[color_0.2s]"}>Terms of Service</Link>
       </div>
     </div>
   </div>

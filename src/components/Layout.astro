@@ -1,16 +1,10 @@
 ---
-import { resolveProps, style } from 'meno-astro';
+import { cx, resolveProps } from 'meno-astro';
 
 const __props = resolveProps(Astro, {});
 const { class: className } = __props;
 ---
-<div class={style({
-    base: {
-      backgroundColor: "var(--bg)",
-      color: "var(--text)",
-      minHeight: "100vh"
-    }
-  }, __props, { root: true })}><slot /></div>
+<div class={cx("min-h-screen bg-bg text-text", className)}><slot /></div>
 
 
 <style is:global>

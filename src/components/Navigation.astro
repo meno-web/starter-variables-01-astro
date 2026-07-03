@@ -1,5 +1,5 @@
 ---
-import { resolveProps, style } from 'meno-astro';
+import { cx, resolveProps, style } from 'meno-astro';
 import { Link } from 'meno-astro/components';
 import NavDropdown from './NavDropdown.astro';
 import NavDropdownLink from './NavDropdownLink.astro';
@@ -8,71 +8,12 @@ import NavLink from './NavLink.astro';
 const __props = resolveProps(Astro, {});
 const { class: className } = __props;
 ---
-<nav class={style({
-    base: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      margin: "0 auto",
-      position: "sticky",
-      top: "0",
-      backgroundColor: "var(--bg)",
-      borderBottom: "1px solid var(--border)",
-      zIndex: "100"
-    },
-    tablet: { height: "65px" },
-    mobile: {}
-  }, __props, { root: true, label: "Nav" })}>
-  <div class={style({
-      base: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        width: "100%",
-        maxWidth: "var(--c-s)",
-        padding: "0 32px"
-      },
-      tablet: { padding: "0 40px" },
-      mobile: { padding: "0 20px" }
-    }, __props, { label: "Container" })}>
-    <input class={style({ base: { display: "none" }, tablet: {}, mobile: {} }, __props, { label: "MenuToggle" })} type="checkbox" id="menu-toggle" />
-    <Link href="/" aria-label="Home">
-      <span class={style({
-          base: {
-            color: "var(--text)",
-            fontSize: "20px",
-            fontWeight: "var(--h-fw)",
-            letterSpacing: "var(--h-ls)"
-          },
-          tablet: {},
-          mobile: {}
-        }, __props, { label: "Logo" })}>Starter</span>
-    </Link>
-    <label class={style({
-        base: { display: "none", cursor: "pointer" },
-        tablet: {
-          display: "flex",
-          flexDirection: "column",
-          gap: "4px",
-          width: "28px",
-          height: "24px",
-          justifyContent: "center",
-          zIndex: "101",
-          marginLeft: "auto"
-        },
-        mobile: {}
-      }, __props, { label: "HamburgerButton" })} for="menu-toggle" aria-label="Toggle menu">
-      <span class={style({
-          base: { display: "none" },
-          tablet: {
-            display: "block",
-            width: "100%",
-            height: "2px",
-            backgroundColor: "var(--text)",
-            transition: "all 0.3s ease"
-          },
-          mobile: {}
-        }, __props, {
+<nav class={cx(style({}, __props, { label: "Nav" }), "m-[0_auto] flex justify-center items-center bg-bg border-b-[1px_solid_var(--border)] sticky top-[0] z-100 max-lg:h-[65px]", className)}>
+  <div class={style({}, __props, { label: "Container" }) + " p-[0_32px] flex justify-between items-center w-full max-w-(--c-s) max-lg:p-[0_40px] max-sm:p-[0_20px]"}>
+    <input class={style({}, __props, { label: "MenuToggle" }) + " hidden"} type="checkbox" id="menu-toggle" />
+    <Link href="/" aria-label="Home"><span class={style({}, __props, { label: "Logo" }) + " text-text text-[20px] font-(number:--h-fw) tracking-(--h-ls)"}>Starter</span></Link>
+    <label class={style({}, __props, { label: "HamburgerButton" }) + " hidden cursor-pointer max-lg:ml-auto max-lg:flex max-lg:flex-col max-lg:justify-center max-lg:gap-1 max-lg:w-7 max-lg:h-6 max-lg:z-101"} for="menu-toggle" aria-label="Toggle menu">
+      <span class={style({}, __props, {
           interactive: [
             {
               prefix: "#menu-toggle:checked ~ label[for=\"menu-toggle\"] ",
@@ -85,18 +26,8 @@ const { class: className } = __props;
             }
           ],
           label: "Line1"
-        })} />
-      <span class={style({
-          base: { display: "none" },
-          tablet: {
-            display: "block",
-            width: "100%",
-            height: "2px",
-            backgroundColor: "var(--text)",
-            transition: "all 0.3s ease"
-          },
-          mobile: {}
-        }, __props, {
+        }) + " hidden max-lg:block max-lg:w-full max-lg:h-0.5 max-lg:bg-text max-lg:transition-[all_0.3s_ease]"} />
+      <span class={style({}, __props, {
           interactive: [
             {
               prefix: "#menu-toggle:checked ~ label[for=\"menu-toggle\"] ",
@@ -109,30 +40,9 @@ const { class: className } = __props;
             }
           ],
           label: "Line2"
-        })} />
+        }) + " hidden max-lg:block max-lg:w-full max-lg:h-0.5 max-lg:bg-text max-lg:transition-[all_0.3s_ease]"} />
     </label>
-    <div class={style({
-        base: { display: "flex", alignItems: "center", gap: "16px" },
-        tablet: {
-          position: "absolute",
-          top: "65px",
-          left: "0",
-          width: "100%",
-          height: "calc(100vh - 65px)",
-          flexDirection: "column",
-          padding: "20px 40px",
-          backgroundColor: "var(--bg)",
-          zIndex: "99",
-          transition: "opacity 0.3s ease, visibility 0.3s ease",
-          alignItems: "flex-start",
-          gap: "24px",
-          overflow: "auto",
-          opacity: "0",
-          visibility: "hidden",
-          pointerEvents: "none"
-        },
-        mobile: { padding: "20px" }
-      }, __props, {
+    <div class={style({}, __props, {
         interactive: [
           {
             name: "on Open",
@@ -145,23 +55,8 @@ const { class: className } = __props;
           }
         ],
         label: "NavList"
-      })}>
-      <ul class={style({
-          base: {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "0",
-            margin: "0"
-          },
-          tablet: {
-            flexDirection: "column",
-            alignItems: "flex-start",
-            gap: "0",
-            width: "100%"
-          },
-          mobile: {}
-        }, __props, { label: "NavLinks" })}>
+      }) + " flex items-center gap-4 max-lg:p-[20px_40px] max-lg:flex-col max-lg:items-start max-lg:gap-6 max-lg:w-full max-lg:h-[calc(100vh_-_65px)] max-lg:bg-bg max-lg:opacity-0 max-lg:absolute max-lg:top-[65px] max-lg:left-[0] max-lg:z-99 max-lg:overflow-auto max-lg:pointer-events-none max-lg:transition-[opacity_0.3s_ease,_visibility_0.3s_ease] max-lg:invisible max-sm:p-5"}>
+      <ul class={style({}, __props, { label: "NavLinks" }) + " p-[0] m-[0] flex justify-center items-center max-lg:flex-col max-lg:items-start max-lg:gap-[0] max-lg:w-full"}>
         <NavLink text="Features" link={{ href: "#features" }} />
         <NavDropdown text="About" isOpen={false}>
           <NavDropdownLink text="Our Story" link={{ href: "#about" }} />
@@ -170,25 +65,8 @@ const { class: className } = __props;
         </NavDropdown>
         <NavLink text="Contact" link={{ href: "#contact" }} />
       </ul>
-      <div class={style({ base: {}, tablet: { paddingTop: "8px" }, mobile: {} }, __props)}>
-        <Link href="/contact-us" class={style({
-            base: {
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "var(--b-p)",
-              backgroundColor: "var(--accent)",
-              color: "var(--white)",
-              borderRadius: "var(--b-br)",
-              fontSize: "var(--te-fs)",
-              letterSpacing: "var(--t-ls)",
-              fontWeight: "var(--t-fw)",
-              textDecoration: "none",
-              transition: "opacity 0.2s"
-            },
-            tablet: {},
-            mobile: {}
-          }, __props, {
+      <div class="max-lg:pt-2">
+        <Link href="/contact-us" class={style({}, __props, {
             interactive: [
               {
                 name: "hover",
@@ -197,27 +75,11 @@ const { class: className } = __props;
                 style: { base: { opacity: "0.85" } }
               }
             ]
-          })}>Contact</Link>
+          }) + " p-(--b-p) inline-flex justify-center items-center bg-accent text-[var(--white)] rounded-(--b-br) text-(length:--te-fs) font-(number:--t-fw) no-underline tracking-(--t-ls) transition-[opacity_0.2s]"}>Contact</Link>
       </div>
     </div>
   </div>
-  <label class={style({
-      base: { display: "none", cursor: "pointer" },
-      tablet: {
-        display: "none",
-        position: "fixed",
-        top: "0",
-        left: "0",
-        width: "100%",
-        height: "100%",
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        zIndex: "98",
-        transition: "opacity 0.3s ease",
-        opacity: "0",
-        pointerEvents: "none"
-      },
-      mobile: {}
-    }, __props, {
+  <label class={style({}, __props, {
       interactive: [
         {
           prefix: "#menu-toggle:checked ~ ",
@@ -230,5 +92,5 @@ const { class: className } = __props;
         }
       ],
       label: "MobileOverlay"
-    })} for="menu-toggle" data-mobile-overlay="" />
+    }) + " hidden cursor-pointer max-lg:hidden max-lg:w-full max-lg:h-full max-lg:bg-[rgba(0,_0,_0,_0.5)] max-lg:opacity-0 max-lg:fixed max-lg:top-[0] max-lg:left-[0] max-lg:z-98 max-lg:pointer-events-none max-lg:transition-[opacity_0.3s_ease]"} for="menu-toggle" data-mobile-overlay="" />
 </nav>
