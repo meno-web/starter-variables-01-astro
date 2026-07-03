@@ -1,5 +1,5 @@
 ---
-import { resolveProps, style } from 'meno-astro';
+import { cx, resolveProps } from 'meno-astro';
 
 const __props = resolveProps(Astro, {
   label: { type: "string", default: "I agree to the terms" },
@@ -19,33 +19,7 @@ const {
   class: className,
 } = __props;
 ---
-<label class={style({
-    base: {
-      display: "flex",
-      flexDirection: "row",
-      justifyContent: "flex-start",
-      alignItems: "center",
-      gap: "10px",
-      fontSize: "var(--te-fs)",
-      letterSpacing: "var(--t-ls)",
-      fontWeight: "500",
-      color: "var(--text)",
-      cursor: "pointer",
-      width: "100%"
-    },
-    tablet: {},
-    mobile: {}
-  }, __props, { root: true })} for={inputId || undefined}>
-  <input class={style({
-      base: {
-        width: "18px",
-        height: "18px",
-        accentColor: "var(--accent)",
-        cursor: "pointer",
-        margin: "0"
-      },
-      tablet: {},
-      mobile: {}
-    }, __props)} type="checkbox" id={inputId || undefined} name={inputName || undefined} value={value || undefined} checked={checked || undefined} required={required || undefined} />
+<label class={cx("flex flex-row justify-start items-center gap-2.5 w-full text-text text-(length:--te-fs) font-[500] tracking-(--t-ls) cursor-pointer", className)} for={inputId || undefined}>
+  <input type="checkbox" id={inputId || undefined} name={inputName || undefined} value={value || undefined} checked={checked || undefined} required={required || undefined} class="m-[0] w-[18px] h-[18px] cursor-pointer accent-accent" />
   <span>{label}</span>
 </label>

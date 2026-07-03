@@ -1,7 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
-import { getCollectionList, i18n, style } from 'meno-astro';
-import { BaseLayout, Link } from 'meno-astro/components';
+import { getCollectionList, i18n } from 'meno-astro';
+import { BaseLayout, Link, MenoImage } from 'meno-astro/components';
 import FaqQuestion from '../components/FaqQuestion.astro';
 import FeatureCard from '../components/FeatureCard.astro';
 import Footer from '../components/Footer.astro';
@@ -16,194 +16,34 @@ const blogList = await getCollectionList("blog", { sort: { field: "_createdAt", 
 <BaseLayout meta={meta}>
   <Layout>
     <Navigation />
-    <section class={style({
-        base: { padding: "var(--s-p)", backgroundColor: "var(--bg)" },
-        tablet: {},
-        mobile: {}
-      })}>
-      <container class={style({
-          base: { display: "block", maxWidth: "var(--c-s)", margin: "auto" },
-          tablet: {},
-          mobile: {}
-        })}>
-        <div class={style({
-            base: {
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              margin: "auto"
-            },
-            tablet: {},
-            mobile: {}
-          })}>
-          <h1 class={style({
-              base: {
-                fontSize: "var(--h-fs)",
-                letterSpacing: "var(--h-ls)",
-                fontWeight: "var(--h-fw)",
-                marginBottom: "var(--h-m)",
-                textAlign: "center",
-                lineHeight: "var(--h-lh)",
-                color: "var(--text)",
-                maxWidth: "725px",
-                flexDirection: "row",
-                justifyContent: "flex-start",
-                alignItems: "stretch"
-              },
-              tablet: {},
-              mobile: {}
-            })}><Fragment set:html={`<!--MENO_RAW_HTML-->Everything you <span class="custom-span">need</span> to build professional website`} /></h1>
-          <p class={style({
-              base: {
-                fontSize: "var(--t-fs)",
-                letterSpacing: "var(--t-ls)",
-                fontWeight: "var(--t-fw)",
-                textAlign: "center",
-                lineHeight: "var(--t-lh)",
-                color: "var(--text)",
-                maxWidth: "500px"
-              },
-              tablet: {},
-              mobile: {}
-            })}>Design and publish professional websites without writing code. Start with this template and make it yours in minutes.</p>
-          <div class={style({
-              base: {
-                display: "flex",
-                flexDirection: "row",
-                justifyContent: "flex-start",
-                alignItems: "stretch",
-                gap: "12px",
-                marginTop: "var(--b-m)"
-              },
-              tablet: {},
-              mobile: {}
-            })}>
-            <Link href="#" class={style({
-                base: {
-                  padding: "var(--b-p)",
-                  display: "inline-flex",
-                  flexDirection: "row",
-                  justifyContent: "flex-start",
-                  alignItems: "stretch",
-                  backgroundColor: "var(--accent)",
-                  borderRadius: "var(--b-br)",
-                  color: "var(--white)",
-                  fontSize: "var(--te-fs)"
-                },
-                tablet: {},
-                mobile: {}
-              })}>Button</Link>
-            <Link href="#" class={style({
-                base: {
-                  padding: "var(--b-p)",
-                  display: "inline-flex",
-                  flexDirection: "row",
-                  justifyContent: "flex-start",
-                  alignItems: "stretch",
-                  backgroundColor: "var(--gray-200)",
-                  borderRadius: "var(--b-br)",
-                  color: "var(--text)",
-                  fontSize: "var(--te-fs)"
-                },
-                tablet: {},
-                mobile: {}
-              })}>Button</Link>
+    <section class="p-(--s-p) bg-bg">
+      <container class="m-auto block max-w-(--c-s)">
+        <div class="m-auto flex flex-col items-center">
+          <h1 class="mb-(--h-m) flex-row justify-start items-stretch max-w-[726px] text-text text-(length:--h-fs) font-(number:--h-fw) text-center leading-(--h-lh) tracking-(--h-ls)"><Fragment set:html={`Everything you <span class="custom-span">need</span> to build professional website`} /></h1>
+          <p class="max-w-[500px] text-text text-(length:--t-fs) font-(number:--t-fw) text-center leading-(--t-lh) tracking-(--t-ls)">Design and publish professional websites without writing code. Start with this template and make it yours in minutes.</p>
+          <div class="mt-(--b-m) flex flex-row justify-start items-stretch gap-3">
+            <Link href="#" class="p-(--b-p) inline-flex flex-row justify-start items-stretch bg-accent text-[var(--white)] rounded-(--b-br) text-(length:--te-fs)">Button</Link>
+            <Link href="#" class="p-(--b-p) inline-flex flex-row justify-start items-stretch bg-[var(--gray-200)] text-text rounded-(--b-br) text-(length:--te-fs)">Button</Link>
           </div>
         </div>
       </container>
     </section>
-    <section class={style({
-        base: { padding: "var(--s-p)", backgroundColor: "var(--gray-100)" },
-        tablet: {},
-        mobile: {}
-      })}>
-      <container class={style({
-          base: { display: "block", margin: "auto", maxWidth: "var(--c-s)" },
-          tablet: {},
-          mobile: {}
-        })}>
-        <h2 class={style({
-            base: {
-              fontSize: "var(--he-fs)",
-              letterSpacing: "var(--h-ls)",
-              fontWeight: "var(--h-fw)",
-              marginBottom: "var(--h-m)",
-              lineHeight: "var(--h-lh)",
-              color: "var(--text)"
-            },
-            tablet: {},
-            mobile: {}
-          })}><Fragment set:html={`<!--MENO_RAW_HTML-->This is <span class="custom-span">features</span> headline`} /></h2>
-        <p class={style({
-            base: {
-              fontSize: "var(--t-fs)",
-              letterSpacing: "var(--t-ls)",
-              fontWeight: "var(--t-fw)",
-              lineHeight: "var(--t-lh)",
-              color: "var(--text)",
-              maxWidth: "380px"
-            },
-            tablet: {},
-            mobile: {}
-          })}>Short supporting description that previews how this section looks and reads in the editor</p>
-        <div class={style({
-            base: {
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: "16px",
-              marginTop: "40px"
-            },
-            tablet: {},
-            mobile: {}
-          })}>
+    <section class="p-(--s-p) bg-[var(--gray-100)]">
+      <container class="m-auto block max-w-(--c-s)">
+        <h2 class="mb-(--h-m) text-text text-(length:--he-fs) font-(number:--h-fw) leading-(--h-lh) tracking-(--h-ls)"><Fragment set:html={`This is <span class="custom-span">features</span> headline`} /></h2>
+        <p class="max-w-[380px] text-text text-(length:--t-fs) font-(number:--t-fw) leading-(--t-lh) tracking-(--t-ls)">Short supporting description that previews how this section looks and reads in the editor</p>
+        <div class="mt-10 grid gap-4 grid-cols-[1fr_1fr_1fr]">
           <FeatureCard description="This is description" text="Feature 1" />
           <FeatureCard description="This is description" text="Feature 2" />
           <FeatureCard description="This is description" text="Feature 3" />
         </div>
       </container>
     </section>
-    <section class={style({
-        base: { padding: "var(--s-p)", backgroundColor: "var(--bg)" },
-        tablet: {},
-        mobile: {}
-      })}>
-      <container class={style({
-          base: { display: "block", maxWidth: "var(--co-s)", margin: "auto" },
-          tablet: {},
-          mobile: {}
-        })}>
-        <h2 class={style({
-            base: {
-              fontSize: "var(--he-fs)",
-              letterSpacing: "var(--h-ls)",
-              fontWeight: "var(--h-fw)",
-              marginBottom: "var(--h-m)",
-              color: "var(--text)"
-            },
-            tablet: {},
-            mobile: {}
-          })}>Frequently asked questions</h2>
-        <p class={style({
-            base: {
-              fontSize: "var(--t-fs)",
-              letterSpacing: "var(--t-ls)",
-              fontWeight: "var(--t-fw)",
-              color: "var(--text)"
-            },
-            tablet: {},
-            mobile: {}
-          })}>Short supporting description that previews how this section looks and reads in the editor.</p>
-        <div class={style({
-            base: {
-              marginTop: "60px",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              alignItems: "stretch"
-            },
-            tablet: {},
-            mobile: {}
-          })}>
+    <section class="p-(--s-p) bg-bg">
+      <container class="m-auto block max-w-(--co-s)">
+        <h2 class="mb-(--h-m) text-text text-(length:--he-fs) font-(number:--h-fw) tracking-(--h-ls)">Frequently asked questions</h2>
+        <p class="text-text text-(length:--t-fs) font-(number:--t-fw) tracking-(--t-ls)">Short supporting description that previews how this section looks and reads in the editor.</p>
+        <div class="mt-[60px] flex flex-col justify-between items-stretch">
           <FaqQuestion answer="Short supporting description that previews how this section looks and reads in the editor" question="First question" />
           <FaqQuestion question="Second question" answer="Short supporting description that previews how this section looks and reads in the editor" />
           <FaqQuestion question="Third question" answer="Short supporting description that previews how this section looks and reads in the editor" />
@@ -211,152 +51,22 @@ const blogList = await getCollectionList("blog", { sort: { field: "_createdAt", 
         </div>
       </container>
     </section>
-    <section class={style({
-        base: { padding: "var(--s-p)", backgroundColor: "var(--gray-100)" },
-        tablet: {},
-        mobile: {}
-      })}>
-      <container class={style({
-          base: { display: "block", maxWidth: "var(--c-s)", margin: "auto" },
-          tablet: {},
-          mobile: {}
-        })}>
-        <div class={style({
-            base: {
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "flex-start",
-              alignItems: "center",
-              textAlign: "center",
-              marginBottom: "52px"
-            },
-            tablet: {},
-            mobile: {}
-          })}>
-          <span class={style({
-              base: {
-                fontSize: "var(--s-fs)",
-                letterSpacing: "var(--s-ls)",
-                fontWeight: "var(--s-fw)",
-                color: "var(--text)",
-                textTransform: "var(--subtitle)",
-                marginBottom: "var(--s-m)"
-              },
-              tablet: {},
-              mobile: {}
-            })}>Blog</span>
-          <h2 class={style({
-              base: {
-                fontSize: "var(--h-fs)",
-                letterSpacing: "var(--h-ls)",
-                fontWeight: "var(--h-fw)",
-                marginBottom: "var(--h-m)",
-                lineHeight: "var(--h-lh)",
-                color: "var(--text)",
-                textAlign: "center"
-              },
-              tablet: {},
-              mobile: {}
-            })}>Latest articles</h2>
-          <p class={style({
-              base: {
-                fontSize: "var(--t-fs)",
-                letterSpacing: "var(--t-ls)",
-                fontWeight: "var(--t-fw)",
-                lineHeight: "var(--t-lh)",
-                color: "var(--text)",
-                textAlign: "center",
-                maxWidth: "520px"
-              },
-              tablet: {},
-              mobile: {}
-            })}>Stay up to date with the latest news, tips, and insights.</p>
+    <section class="p-(--s-p) bg-[var(--gray-100)]">
+      <container class="m-auto block max-w-(--c-s)">
+        <div class="mb-[52px] flex flex-col justify-start items-center text-center">
+          <span class="mb-(--s-m) text-text text-(length:--s-fs) font-(number:--s-fw) [text-transform:var(--subtitle)] tracking-(--s-ls)">Blog</span>
+          <h2 class="mb-(--h-m) text-text text-(length:--h-fs) font-(number:--h-fw) text-center leading-(--h-lh) tracking-(--h-ls)">Latest articles</h2>
+          <p class="max-w-[520px] text-text text-(length:--t-fs) font-(number:--t-fw) text-center leading-(--t-lh) tracking-(--t-ls)">Stay up to date with the latest news, tips, and insights.</p>
         </div>
-        <div class={style({
-            base: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" },
-            tablet: {},
-            mobile: {}
-          })}>
+        <div class="grid gap-4 grid-cols-[1fr_1fr_1fr]">
           {blogList.map((post, postIndex) => (
-            <Link href={i18n(post._url)} class={style({
-                base: {
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "flex-start",
-                  alignItems: "stretch",
-                  backgroundColor: "var(--bg)",
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                  border: "1px solid var(--border)",
-                  color: "var(--text)",
-                  textDecoration: "none"
-                },
-                tablet: {},
-                mobile: {}
-              })}>
-              <img class={style({
-                  base: { aspectRatio: "16 / 10", objectFit: "cover" },
-                  tablet: {},
-                  mobile: {}
-                })} src={i18n(post.image) || undefined} alt={i18n(post.title) || undefined} />
-              <div class={style({
-                  base: {
-                    padding: "24px",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    gap: "12px"
-                  },
-                  tablet: {},
-                  mobile: {}
-                })}>
-                <span class={style({
-                    base: {
-                      display: "inline-block",
-                      padding: "4px 12px",
-                      backgroundColor: "var(--gray-100)",
-                      borderRadius: "999px",
-                      fontSize: "var(--tex-fs)",
-                      fontWeight: "500",
-                      color: "var(--text)"
-                    },
-                    tablet: {},
-                    mobile: {}
-                  })}>{i18n(post.category)}</span>
-                <h3 class={style({
-                    base: {
-                      fontSize: "var(--head-fs)",
-                      letterSpacing: "var(--h-ls)",
-                      fontWeight: "var(--h-fw)",
-                      lineHeight: "var(--h-lh)",
-                      color: "var(--text)",
-                      margin: "0"
-                    },
-                    tablet: {},
-                    mobile: {}
-                  })}>{i18n(post.title)}</h3>
-                <span class={style({
-                    base: {
-                      fontSize: "var(--te-fs)",
-                      letterSpacing: "var(--t-ls)",
-                      fontWeight: "var(--t-fw)",
-                      color: "var(--muted)"
-                    },
-                    tablet: {},
-                    mobile: {}
-                  })}>{i18n(post.date)}</span>
-                <p class={style({
-                    base: {
-                      fontSize: "var(--t-fs)",
-                      letterSpacing: "var(--t-ls)",
-                      fontWeight: "var(--t-fw)",
-                      lineHeight: "var(--t-lh)",
-                      color: "var(--text)",
-                      marginTop: "4px"
-                    },
-                    tablet: {},
-                    mobile: {}
-                  })}>{i18n(post.description)}</p>
+            <Link href={i18n(post._url)} class="flex flex-col justify-start items-stretch bg-bg text-text border-[1px_solid_var(--border)] rounded-[8px] no-underline overflow-hidden">
+              <MenoImage src={i18n(post.image) || undefined} alt={i18n(post.title) || undefined} class="aspect-[16_/_10] object-cover" />
+              <div class="p-6 flex flex-col items-start gap-3">
+                <span class="p-[4px_12px] inline-block bg-[var(--gray-100)] text-text rounded-[999px] text-(length:--tex-fs) font-[500]">{i18n(post.category)}</span>
+                <h3 class="m-[0] text-text text-(length:--head-fs) font-(number:--h-fw) leading-(--h-lh) tracking-(--h-ls)">{i18n(post.title)}</h3>
+                <span class="text-muted text-(length:--te-fs) font-(number:--t-fw) tracking-(--t-ls)">{i18n(post.date)}</span>
+                <p class="mt-1 text-text text-(length:--t-fs) font-(number:--t-fw) leading-(--t-lh) tracking-(--t-ls)">{i18n(post.description)}</p>
               </div>
             </Link>
           ))}

@@ -12,29 +12,57 @@ under `src/pages/*.astro` and components under `src/components/*.astro`. The cod
 guarantees `parse(emit(normalizeModel(x))) === normalizeModel(x)` — so anything you write
 **must stay inside the grammar below** or it will not round-trip.
 
-Full spec: `docs/meno-astro-dialect.md`. Package API + status: `docs/meno-astro-api.md`.
-Read those if `$ARGUMENTS` needs detail beyond this cheat-sheet.
+The project `CLAUDE.md` already covers the everyday cases (the tripwires, node/prop forms, and
+file skeletons) — this skill is the **deeper reference** for the specialized forms below (islands,
+custom components, prop-variant / component-root styling, `LocaleList`, verbatim-JS markers, and the
+full round-trip caveats). Full spec: `docs/meno/meno-astro-dialect.md`. Read it if `$ARGUMENTS`
+needs detail beyond this cheat-sheet.
 
 ## The golden rules (do / don't)
 
-1. **Styles live in `style({...})`, never in a raw `class="..."`.**
-   The argument is a Meno `StyleObject`: `{ base: {...}, tablet: {...}, mobile: {...} }`
-   (or a flat object). Prop-bound values are `{ _mapping: true, prop: "name", values: {...} }`.
-   ✅ `<div class={style({ base: { display: "flex", gap: "12px" } })}>`
-   ❌ `<div class="flex gap-3">` — a raw Tailwind/CSS class string does **not** round-trip
-   (the parser feeds `class` through `interpretStyleCall`, which expects `style(...)`).
-   - **Instance styles** (a per-use override on a component instance) ride the instance's
-     own `class={style(OBJ, __props, { instance: true })}` **and** an emit-only
-     `__menoStyle={OBJ}` forward. The **component structure root** carries `{ root: true }`
-     so `style()` merges that instance class over the root's own classes (instance wins per
-     property). ✅ `<Card class={style({ base: { maxWidth: "320px" } }, __props, { instance: true })} __menoStyle={{ base: { maxWidth: "320px" } }} />`
-   - **A root style value bound to a prop** (`maxWidth: "{{maxWidth}}"`) can't be a static
-     class → it emits inline. On a component root, wrap it as
-     `style={inlineStyle({ "max-width": `${maxWidth}` }, __props)}` (not a bare
-     `` style={`max-width: ${maxWidth}`} ``) so an instance override of that property wins —
-     an inline `style=` otherwise outranks the instance's utility class. The `instance`,
-     `root`, and `__menoStyle` markers are emit-only (dropped on parse); these forms are
-     normally produced by emit on save — match them when hand-authoring.
+1. **Static styling is a utility class string — `class="p-4 flex"`.**
+   Meno's own Tailwind-*looking* utilities (its engine, not real Tailwind), written directly on the
+   element: a **named spacing/size scale** (`p-4` = 16px, `gap-2` = 8px — 4px grid), **named design
+   tokens** (`bg-muted`, `text-primary` — a color/var from `src/styles/theme.css`), and
+   **arbitrary brackets** for off-scale / literal values (`p-[13px]`, `bg-[#fff]`, `text-(--custom)`);
+   responsive tiers via a desktop-first `max-lg:` (tablet, ≤1024px) / `max-sm:` (mobile, ≤540px) prefix
+   (`max-lg:p-2` — base wins, narrower tiers override down; bare `tablet:`/`mobile:` is legacy, accepted on
+   read but re-emitted to the `max-` form), states via `hover:` / `focus:` / `active:` (`hover:bg-[#222]`). The build
+   generates the CSS; unmodeled library classes (`swiper`, `prose`) pass through verbatim. **The canonical
+   form** — the editor canonicalizes on-scale + known-token values to the named form on save (`p-[16px]`
+   re-emits as `p-4`).
+   ✅ `<div class="flex gap-[12px] p-[24px] max-lg:p-[16px] hover:bg-[#222]">` · foreign coexist: `class="p-[24px] swiper"`
+   **Every styleable node carries it the same way** — an `<Embed>`, `<Link>`, or `<Markdown>` takes
+   `class="…"` (incl. `hover:`/`focus:`/`active:`) just like a `<div>`; only `list`/`island`/`slot`/`custom` have no styling.
+   **Named VALUE scales bind to YOUR variables — never Tailwind's defaults.** `text-lg`, `font-semibold`,
+   `rounded-md`, `shadow-lg`, `max-w-md`, `leading-tight`, `tracking-wide`, `font-sans` emit
+   `prop: var(--text-lg)` (etc.) and render **only if that variable is defined** in `src/styles/theme.css`;
+   otherwise the declaration is inert (Meno is token-based — it does NOT fall back to Tailwind's px
+   values). For a one-off, use an **arbitrary bracket** (`text-[18px]`, `rounded-[10px]`,
+   `shadow-[0_4px_12px_#0002]`) or a defined token — don't assume a named scale "just works".
+   *Computed* forms DO work standalone (these are Tailwind's definitions, not opinionated values):
+   fractions (`w-1/2`→50%), negatives (`-mt-4`), grid (`grid-cols-3`, `col-span-2`, `row-span-2`),
+   transforms (`scale-105`, `rotate-45`, `translate-x-2`), transitions (`duration-300`, `ease-in-out`).
+   Three things CAN'T be a static class (they need per-instance prop values) → runtime helpers:
+   - **Prop-bound `{{template}}`** (`gap: "{{gap}}px"`) — keeps a `style({...})` call (round-trip)
+     AND emits inline. On a component root wrap the inline as
+     `style={inlineStyle({ gap: `${gap}px` }, __props)}` (not a bare `` style={`gap: ${gap}px`} ``)
+     so an instance override of that property wins — an inline `style=` otherwise outranks the
+     instance's utility class.
+   - **Prop-variant** (one prop selecting class sets) — `variants()` is for **bracket-value**
+     utilities (size / spacing / layout / gradients), e.g.
+     `class={cx("p-[24px]", variants(__props, { size: { sm: "text-[14px]", lg: "text-[20px]" } }))}`.
+     ⚠ **Colors can't go through `variants()`**: it emits the literal class string, but the build
+     canonicalizes a token/hex color to a *named* class (`.text-<token>`), so they mismatch and the
+     color silently never applies. Prop-driven colors use a `style()` `_mapping` instead (it *computes*
+     the matching class name): `class={cx(style({ base: { color: { _mapping: true, prop: "tone",
+     values: { muted: "var(--muted)", strong: "var(--text)" } } } }, __props), className)}`.
+   - **Component STRUCTURE ROOT** — merges the parent's instance overrides via
+     `cx(<own classes>, className)` (instance wins per property): class-only root
+     `class={cx("p-[24px] …", className)}`, style-less `class={cx(className)}`, with dynamic styling
+     `class={cx(style(OBJ, __props), className)}`. A per-use override on an instance rides its `class`
+     prop (`<Card class="p-[24px]" />`); the `instance`/`root`/`__menoStyle` markers are emit-only
+     (dropped on parse) — match emit's forms when hand-authoring.
 
 2. **i18n values live in `i18n({...})`** with the `{ _i18n: true, en, pl, ... }` shape.
    ✅ `<Heading text={i18n({ _i18n: true, en: "About", pl: "O nas" })} />`
@@ -61,8 +89,17 @@ Read those if `$ARGUMENTS` needs detail beyond this cheat-sheet.
    names + their TS types are inferred/regenerated on save. If you change a prop, change
    that literal. Always keep `class: className` in the destructure; emit the call even for
    an empty interface (`const { class: className } = resolveProps(Astro, {});`).
-   Component metadata (`category`, `acceptsStyles`, `libraries`) goes in
-   `const __meno = {...}` (omit if empty). A component's JS
+   ⚠ **The parser is strict about these object literals** (`resolveProps`, and the `variants()` /
+   `style()` tables): **no trailing commas** and **no ES6 shorthand** — write `{ size: size }`, not
+   `{ size }`, and no comma before a closing `}`. A violation throws `parseLiteral: expected object
+   key` / `expected ":"`, and **a file that fails to parse gets no utility CSS at all** (it renders
+   unstyled, silently) — sanity-check with the codec (step 4 below) after non-trivial edits. For
+   prop-driven styling, bind `variants()`/`style()` to the whole props object:
+   `const __props = resolveProps(Astro, {...}); const { ...names, class: className } = __props;`.
+   Component metadata (`acceptsStyles`, `libraries`) goes in
+   `const __meno = {...}` (omit if empty). **Studio groups components by their folder** under
+   `src/components/` (e.g. `ui/`, `sections/`), not by metadata — a `__meno.category` round-trips
+   but is inert for grouping, so organize with folders. A component's JS
    that needs its props is emitted as `<script define:vars={{ a, b }}>` (native Astro
    prop-injection, `true` = all props / `string[]` = a subset); a script without it is a
    plain `<script is:inline>`. `defineVars` is **not** in `__meno`.
@@ -71,8 +108,25 @@ Read those if `$ARGUMENTS` needs detail beyond this cheat-sheet.
    `if: false` → `{false && ( … )}`; a `BooleanMapping` → `{when({...}) && ( … )}`.
 
 7. **Lists:**
-   - prop list → `{ list(items, { limit: 6 }).map((item, itemIndex) => ( … )) }`
-     (loop var defaults to `item`; index is always `<var>Index`).
+   - prop list → **declare** the backing prop as `type: "list"` (**`itemSchema` is required**,
+     and `default` is an **array of objects** — one `{ field: value }` record per item), then map
+     it in the body and bind item **fields** (never the bare item):
+     ```astro
+     const { items, class: className } = resolveProps(Astro, {
+       items: {
+         type: "list",
+         itemSchema: { label: { type: "string", default: "Item" } },
+         default: [{ label: "First" }, { label: "Second" }],
+       },
+     });
+     // body — loop var defaults to `item`, index is always `<var>Index`:
+     { list(items, { limit: 6 }).map((item, itemIndex) => ( <span>{item.label}</span> )) }
+     ```
+     ⚠ **Anti-pattern (the single most likely first guess):** a bare-string `default`
+     (`items: { type: "list", default: ["First", "Second"] }`) or a **missing `itemSchema`**.
+     It round-trips through the codec **and** `astro build` renders it — but the component
+     **fails to open in Studio** with `interface.items — list prop requires itemSchema and an
+     object-array default`. Always give a list prop an `itemSchema` + object-array default.
    - collection list → a frontmatter `const xList = await getCollectionList("blog", { ... }, Astro)`
      then `{ xList.map((blog, blogIndex) => ( … )) }` (loop var defaults to `singularize(source)`).
    ⚠ If you author a collection list, make the loop variable match the templates in the
@@ -84,24 +138,66 @@ Read those if `$ARGUMENTS` needs detail beyond this cheat-sheet.
    - `<Link href="/x">…</Link>` (link) · `href={i18n({...})}` or `href={href({...})}` for
      i18n/mapping hrefs.
    - `<Embed html={`<svg>…</svg>`} />` (single-line) or hoist multi-line HTML to a
-     frontmatter `const __embedN = \`…\`` and use `html={__embedN}`.
-   - `<slot />` / `<slot>fallback</slot>`.
+     frontmatter `const __embedN = \`…\`` and use `html={__embedN}`. `__embedN` is the
+     **canonical** name (0-based + sequential). A custom-named hoist (`const __iconChat = …`)
+     still round-trips — the HTML is recovered — but emit renames it to `__embedN` on save, so
+     don't expect a semantic name to survive. (Only a frontmatter backtick const is inlined;
+     `html={prop}` / `html={i18n(cms.field)}` stay bindings — a prop-bound embed.)
+   - `<slot />` / `<slot>fallback</slot>`. **Named slots:** `<slot name="header" />` (with
+     optional fallback). Assign instance content to a named slot with a plain `slot=` attribute
+     on the child: `<Card><h2 slot="header">Title</h2><p>body</p></Card>` (the default slot takes
+     the unnamed children). The `slot=` attribute round-trips as a normal attribute.
    - `<LocaleList … />` (locale switcher; style sub-props wrapped in `style(...)`, editor
      meta in a single `meta={{...}}`).
    - Dynamic tag (`h{{size}}`) → frontmatter `const Tag_0 = \`h${size}\`` + `<Tag_0>…</Tag_0>`.
+   - **Optimized image** → a **local** `<img src=… alt=… />` (a plain `img` node) emits the runtime
+     `<MenoImage>` (`astro:assets`) **by default** — `normalizeModel` stamps the `data-meno-optimize`
+     marker. Opt a single image out with `data-meno-optimize="false"`. Remote/`data:`/`.svg` srcs stay
+     bare `<img>` unless explicitly marked `data-meno-optimize="true"`; a remote `src` also needs its
+     host in `project.config.json` `image.domains` to actually optimize.
+   - **Markdown** → `<Markdown source={`# Title\n\nbody`} />` (multi-line hoists to
+     `const __mdN = \`…\``). `source` is **verbatim, never template-resolved** — no `{{…}}` inside.
+   - **Island** (BYO React/Preact/Vue/Svelte) → `<Counter client:visible … />` +
+     `import Counter from '../islands/Counter.tsx'` (file under `src/islands/`). Put the `client:*`
+     directive on the tag (bare `load`/`idle`/`visible`; valued `media`/`only`; omit for
+     server-only). `meno()` auto-wires the renderer — **don't import a renderer or any
+     non-`meno-astro` package in `astro.config`** (the preview statically scans it, allow-lists
+     only `astro/config` + `meno-astro`, and won't open the project otherwise). An island gets
+     **no** `style()` class / instance-style / `cms` forwarding — only its explicit props.
+   - **Custom component** (opaque foreign `.astro`, server-only) → `<Fancy …>children</Fancy>` +
+     `import Fancy from '../custom/Fancy.astro'` (file under `src/custom/`). Author it with full
+     Astro power; Meno passes **only explicit props** + slots children and never models the
+     internals (black box; **no `client:*`**, no `style()` / `cms` forwarding). The server-only
+     sibling of an island — use for dialect-inexpressible markup that needs no browser framework.
 
-9. **Verbatim JS expressions survive; foreign `class`/frontmatter do not (yet).** An
+9. **Verbatim JS expressions + foreign frontmatter survive; raw `class` does not.** An
    un-evaluatable `{expr}` (a function/method call like `{(price * 0.8).toFixed(2)}`,
    `{items.map(fn)}`) is preserved as a `{ _code, expr }` marker and reported as a
    `verbatim` region — it round-trips and builds, it just isn't an editable binding. Prefer
    a real `{{binding}}` when the template engine can evaluate it (identifier/member/
-   operators/ternary). The `rawClass` (raw Tailwind `class="…"`) and frontmatter escape
-   hatches are still **not** implemented — stay inside the grammar for those.
+   operators/ternary). Hand-authored frontmatter (a stray `const`/`import`/`function`) is captured
+   as a verbatim `_frontmatter` passthrough block and round-trips. A static utility/foreign
+   `class="…"` is now first-class (rule 1) — it parses to `attributes.class` and round-trips.
 
 10. **Serialization is deterministic.** All literals (style/props/meta/i18n/list config) are
     printed with stable key order, JSON string escaping, and 80-col wrapping. Don't hand-tune
     formatting — a save re-emits canonically anyway. Drop empties: empty `style`, empty
     `children`, empty `meta`/`interface`, and a lone array child collapse on normalization.
+
+## Escalation ladder (when the dialect can't express it)
+
+Reach for the **lowest** rung that works; escalate only on a genuine wall (never trade away
+visual editing for something the dialect already models):
+
+1. **Native dialect** — nodes + `style()` + `i18n()` + `{{bindings}}` + reusable
+   `src/components/*.astro`. The default.
+2. **Custom component** (rule 8) — a *piece* of UI the dialect can't model → an opaque
+   `src/custom/*.astro` referenced as a `type:"custom"` node (server-only, explicit props, black
+   box, round-trips). Need a *client* framework instead → use an **island** (rule 8).
+3. **Entire custom page** — a whole bespoke route → hand-author `src/pages/<route>.astro`.
+   Dialect body + foreign frontmatter stays visually editable (`_frontmatter` passthrough); a
+   fully non-dialect page opens **read-only** (lists + previews, save is a no-op). Both build as
+   normal Astro.
 
 ## File skeletons
 
@@ -123,6 +219,15 @@ const meta = {
 </BaseLayout>
 ```
 
+Optional SEO/head fields ride the same plain `const meta` (never `export`/`satisfies`):
+`viewTransitions: true` (→ `<ClientRouter>`), `noindex: true`, `sitemap: { priority, changefreq,
+exclude }`, `customCode: { head, bodyStart, bodyEnd }`. **`prerender: true | false`** is the
+per-page static/SSR override — it's lifted OUT of `const meta` and emitted as a top-level
+`export const prerender = …` (Astro's own per-route mechanism); `false` needs SSR output. Omit it
+to inherit the project `output`. Project-wide config (`redirects`, remote
+`image.domains`, `prefetch`, `devToolbar`, `icons`, global `customCode`) lives in
+`project.config.json`, not page meta. See the dialect/API docs for the full shapes.
+
 **CMS template page** (`src/pages/<collection>/[slug].astro`) — a page whose
 `meta.source === "cms"` + `meta.cms` schema; the body renders the current item's plain
 fields via `{i18n(cms.field)}` and a **rich-text** field bound as a text child via
@@ -131,8 +236,21 @@ interpolation (a plain `{i18n(cms.richField)}` would print `[object Object]`).
 `richTextWithComponents` converts the TipTap value to HTML **and renders components
 embedded in the rich text** (TipTap `menoComponent` nodes) against `cmsComponents`, the
 generated registry module (`src/cmsComponents.ts` — don't hand-edit it; it's a constant
-`import.meta.glob` over `src/components/`). An **embed node** bound to a rich-text field
-still uses `<Embed html={i18n(cms.field)} />`. The `import { getCollection }`,
+`import.meta.glob` over `src/components/`). The **same registry-backed render** applies
+everywhere a rich-text value is shown, not just a CMS text child:
+- a component's `type:"rich-text"` **prop** renders via
+  `<Fragment set:html={richTextWithComponents(<prop>, cmsComponents)} />` (+ the
+  `cmsComponents` import) — **never** a bare `set:html={<prop>}`;
+- an **embed node** bound to a rich-text field passes the registry:
+  `<Embed html={i18n(cms.field)} components={cmsComponents} />`.
+
+A bare `set:html={value}` (or `<Embed html={value}>` without `components`) renders text and
+URL embeds but **drops any component embedded in the rich text** — it ships as an empty
+`<div data-meno-component="…">`. **Troubleshooting** "an embedded component doesn't render":
+the renderer is using the bare form — switch it to `richTextWithComponents(value,
+cmsComponents)` / add `components={cmsComponents}`, and make sure `src/cmsComponents.ts`
+exists (the editor stamps it on save; if missing, create it as the `import.meta.glob` above).
+The `import { getCollection }`,
 `getStaticPaths()`, `const { cms } = Astro.props;`, and the `cmsComponents` import are
 **derived boilerplate** — they're regenerated from the model on emit and the parser skips
 them, so don't hand-edit them for meaning (edit `meta.cms` instead). The route directory
@@ -168,18 +286,26 @@ const meta = {
 </BaseLayout>
 ```
 
+**Collection variants** (set on `meta.cms`):
+- **Data-only collection** — OMIT `urlPattern` (and `slugField`) on the schema. It's structured
+  data with no per-item page/route (Team, Testimonials, Settings); no `[slug].astro` is emitted,
+  but it's still registered as a content collection you bind to lists/cards. There is no template
+  page for it — only its `cms/<id>/*.json` items + the schema.
+- **RSS feed** — add `rss: true` to a ROUTED collection's `meta.cms` (one with a `urlPattern`).
+  A prerendered `<route-prefix>/rss.xml` feed is generated (title/description/date auto-detected
+  from the fields; item links use the synthesized `_url`). Data-only collections can't have RSS
+  (no item links).
+
 **Component** (`src/components/<Name>.astro`):
 ```astro
 ---
-import { resolveProps, style } from 'meno-astro';
+import { resolveProps, cx } from 'meno-astro';
 
 const { text, class: className } = resolveProps(Astro, {
   text: { type: "string", default: "Heading" }
 });
-
-const __meno = { category: "ui" };
 ---
-<h2 class={style({ base: { fontWeight: "500" } })}>{text}</h2>
+<h2 class={cx("font-[500]", className)}>{text}</h2>
 ```
 
 ## How to work
@@ -196,5 +322,6 @@ const __meno = { category: "ui" };
    ```
    bun -e 'import {emit,parse,normalizeModel} from "meno-astro/dialect"; /* parse(src) then emit(model) */'
    ```
-5. **Stay inside the grammar.** Anything you can't express in dialect (raw Tailwind, ad-hoc
-   Astro logic) will be lost on the next save — flag it instead of writing it.
+5. **Stay inside the grammar.** Anything you can't express in dialect (ad-hoc Astro frontmatter
+   logic) will be lost on the next save — flag it instead of writing it. A utility/foreign
+   `class="…"` IS in the grammar now (rule 1).

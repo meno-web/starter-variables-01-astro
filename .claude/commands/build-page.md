@@ -55,9 +55,10 @@ authored directly as **meno-astro dialect** and written to `src/pages/<slug>.ast
    it. Use the `/meno-astro` skill + adv-19 example as a starting point.
 
    **Priority 3 — Raw nodes**: inline plain HTML tags only for layout scaffolding that isn't
-   worth extracting. Styles go in `class={style({...})}`, never a raw `class="..."`.
+   worth extracting. Static styling is a literal utility `class="..."` string (the canonical,
+   round-tripping form); reach for `style({...})` only for prop-bound / responsive-mapping values.
    ```astro
-   <div class={style({ base: { display: "flex", gap: "24px" } })}> … </div>
+   <div class="flex gap-[24px]"> … </div>
    ```
 
 5. **Write the page** to `src/pages/<slug>.astro` (e.g. `landing` → `src/pages/landing.astro`).
@@ -106,21 +107,19 @@ Translatable values use `i18n({...})` with the `{ _i18n: true, en, … }` shape:
 Import `i18n` from `'meno-astro'`.
 
 ### Colors
-Always use CSS variables from `colors.json` (`var(--text)`, `var(--bg)`, …):
+Always use CSS variables from `src/styles/theme.css`, as static utility classes:
 ```astro
-<div class={style({ base: { color: "var(--text)", backgroundColor: "var(--bg)" } })}> … </div>
+<div class="text-(--text) bg-(--bg)"> … </div>
 ```
 
 ### Styles & Responsive
-Styles live in `style({...})` — never a raw `class="..."`. Use `base` / `tablet` / `mobile`
-breakpoint objects. Import `style` from `'meno-astro'`.
+Static styling is a literal utility `class="..."` string — the canonical, round-tripping form. Use
+desktop-first `max-lg:` (tablet) / `max-sm:` (mobile) prefixes for responsive overrides:
 ```astro
-<div class={style({
-  base: { fontSize: "48px", padding: "80px" },
-  tablet: { fontSize: "36px", padding: "60px" },
-  mobile: { fontSize: "24px", padding: "40px" }
-})}> … </div>
+<div class="text-[48px] p-[80px] max-lg:text-[36px] max-lg:p-[60px] max-sm:text-[24px] max-sm:p-[40px]"> … </div>
 ```
+Reach for `style({ base, tablet, mobile }, __props)` only when a value is prop-bound or a mapping
+(prop-driven **colors** must use `style()`, never `variants()`).
 
 ### Images
 Reference assets by absolute path from `/images/`:

@@ -1,5 +1,5 @@
 ---
-import { resolveProps, style } from 'meno-astro';
+import { cx, resolveProps } from 'meno-astro';
 
 const __props = resolveProps(Astro, {
   text: { type: "string", default: "This is heading" },
@@ -7,32 +7,7 @@ const __props = resolveProps(Astro, {
 });
 const { text, description, class: className } = __props;
 ---
-<div class={style({
-    base: { padding: "24px", backgroundColor: "var(--bg)", borderRadius: "8px" },
-    tablet: {},
-    mobile: {}
-  }, __props, { root: true })}>
-  <h3 class={style({
-      base: {
-        fontSize: "var(--hea-fs)",
-        letterSpacing: "var(--h-ls)",
-        fontWeight: "var(--h-fw)",
-        marginBottom: "var(--he-m)",
-        lineHeight: "var(--h-lh)",
-        color: "var(--text)"
-      },
-      tablet: {},
-      mobile: {}
-    }, __props)}>{text}</h3>
-  <p class={style({
-      base: {
-        fontSize: "var(--t-fs)",
-        letterSpacing: "var(--t-ls)",
-        fontWeight: "var(--t-fw)",
-        lineHeight: "var(--t-lh)",
-        color: "var(--text)"
-      },
-      tablet: {},
-      mobile: {}
-    }, __props)}>{description}</p>
+<div class={cx("p-6 bg-bg rounded-[8px]", className)}>
+  <h3 class="mb-(--he-m) text-text text-(length:--hea-fs) font-(number:--h-fw) leading-(--h-lh) tracking-(--h-ls)">{text}</h3>
+  <p class="text-text text-(length:--t-fs) font-(number:--t-fw) leading-(--t-lh) tracking-(--t-ls)">{description}</p>
 </div>

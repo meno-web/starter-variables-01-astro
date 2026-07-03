@@ -26,7 +26,7 @@ When a component has a \`.js\` file (e.g., \`Button.js\` for \`Button.json\`), y
 const button = el.querySelector('[data-action="submit"]');
 // title is already in scope - see "Props are destructured into scope" below
 button?.addEventListener('click', () => {
-  console.log('Clicked:', title);
+  log.info('Clicked:', title);
 });
 \`\`\`
 
@@ -101,7 +101,7 @@ el.addEventListener('click', () => {
 // Modal.js
 el.addEventListener('open-modal', (e) => {
   el.classList.add('is-open');
-  console.log(e.detail.url);
+  log.info(e.detail.url);
 });
 \`\`\`
 

@@ -39,16 +39,14 @@ separate `interface`, and no `structure` — those are JSON-format concepts.
 
 ```astro
 ---
-import { resolveProps, style } from 'meno-astro';
+import { resolveProps, cx } from 'meno-astro';
 
 const { title, class: className } = resolveProps(Astro, {
   title: { type: "string", default: "Hello" }
 });
-
-const __meno = { category: "ui" };
 ---
-<div class={style({ base: { display: "flex", flexDirection: "column" } })}>
-  <h2 class={style({ base: { fontWeight: "500" } })}>{title}</h2>
+<div class={cx("flex flex-col", className)}>
+  <h2 class="font-[500]">{title}</h2>
 </div>
 ```
 
@@ -56,8 +54,10 @@ const __meno = { category: "ui" };
   Declare every prop there exactly once. Always keep `class: className` in the destructure,
   and emit the call even when there are no props
   (`const { class: className } = resolveProps(Astro, {});`).
-- `const __meno = {...}` carries `category` (`"ui"` / `"form"` /
-  `"section"`), `acceptsStyles`, `libraries`. Omit the line entirely if it would be empty.
+- `const __meno = {...}` carries `acceptsStyles`, `libraries`. Omit the line entirely if it
+  would be empty. **Components are grouped in Studio by their folder** under `src/components/`
+  (e.g. `ui/`, `sections/`), not by metadata — save the component into the right folder; a
+  `__meno.category` field round-trips but is inert for grouping.
 
 ### Prop Types
 
@@ -97,30 +97,49 @@ avatar: { type: "image" }
 Never use `children` as a prop name — slots are `<slot />` (or `<slot>fallback</slot>`).
 Pass-through content goes through the slot, not a prop.
 
-### Styles — always `style({...})`, never a raw class
+### Styles — utility `class="..."` strings; `cx(…, className)` on the root
 
-Styles live in `class={style({ base: {…}, tablet: {…}, mobile: {…} })}`. A raw
-`class="flex gap-3"` (Tailwind/CSS string) does **not** round-trip.
+Static styling is a utility class string. On the component **root**, wrap it as
+`class={cx("…", className)}` so a caller's instance overrides merge; **inner nodes can be a bare
+literal `class="…"`** (both parse to `attributes.class`, build, round-trip, and open in Studio):
 
 ```astro
-<div class={style({
-  base: { display: "flex", gap: "12px", padding: "24px" },
-  tablet: {},
-  mobile: {}
-})}>
+<div class={cx("flex gap-[12px] p-[24px]", className)}>
+  <h2 class="text-[20px] font-[500]">{title}</h2>
+</div>
 ```
 
-- **Colors** come from `colors.json` as CSS vars: `color: "var(--text)"`,
-  `backgroundColor: "var(--bg)"`. **Tokens** from `variables.json` similarly (`"var(--b-p)"`).
-- **Prop-bound style values** use a mapping object keyed by a prop's value:
+> ⚠ **The #1 "won't open in Studio" gotcha is NOT the classes — it's a missing `resolveProps`.** A
+> component's frontmatter MUST contain the `resolveProps(Astro, {…})` call (**even when empty**:
+> `const { class: className } = resolveProps(Astro, {});`). Without it the parser treats the file as a
+> *page* (a `root`, no component `structure`), the `/api/component-data` load returns 400, and Studio
+> fails with *"This component is missing its structure definition."* When you extract page markup into
+> a component, **add the `resolveProps` call** — the classes themselves (literal or `cx`) are fine.
 
-  ```astro
-  backgroundColor: {
-    _mapping: true,
-    prop: "variant",
-    values: { primary: "var(--text)", secondary: "var(--bg)" }
-  }
-  ```
+The class string is Meno's Tailwind-looking engine: named scale (`flex`, `p-4`, `gap-3`), design
+tokens (`bg-muted`, `text-(--text)` from `theme.css`), arbitrary brackets for off-scale / literal
+values (`p-[13px]`, `bg-[#fff]`, `text-(--custom)`), plus desktop-first responsive `max-lg:` /
+`max-sm:` and `hover:` / `focus:` / `active:` prefixes.
+
+Use `style({...})` / `variants(...)` **inside** the `cx(...)` for values that can't be a static
+class — a prop-bound `{{template}}`, a prop-variant, or a responsive/interactive **mapping**:
+
+```astro
+const __props = resolveProps(Astro, { variant: { type: "select", options: ["primary", "secondary"], default: "primary" } });
+const { variant, class: className } = __props;
+// …
+<span class={cx("flex gap-[8px]", style({ base: { color: {
+  _mapping: true, prop: "variant",
+  values: { primary: "var(--text)", secondary: "var(--muted)" }
+} } }, __props), className)}>
+```
+
+- **Colors / tokens** come from `src/styles/theme.css`. A **fixed** color is a static class inside
+  `cx(...)` — `class={cx("text-(--text) bg-(--bg)")}`. A **prop-driven** color must use the `style()`
+  `_mapping` above — ⚠ **not** `variants()` (token colors get canonicalized to a named class and
+  silently break there). `variants()` is for bracket-value utilities only (sizes, spacing, layout, gradients).
+- ⚠ In `resolveProps` / `variants` / `style` object literals: **no trailing commas, no ES6 shorthand**
+  (`{ size: size }`, not `{ size }`). A parse failure = no CSS, rendered silently unstyled.
 
 ### Props & templating in markup
 
@@ -165,13 +184,13 @@ component-to-component communication.
 
 ```astro
 ---
-import { resolveProps, style } from 'meno-astro';
+import { resolveProps, cx } from 'meno-astro';
 
 const { initialCount, class: className } = resolveProps(Astro, {
   initialCount: { type: "number", default: 0 }
 });
 ---
-<div class={style({ base: { display: "flex", gap: "8px", alignItems: "center" } })}>
+<div class={cx("flex gap-[8px] items-center", className)}>
   <button type="button" data-action="increment">+</button>
   <span data-el="count">{initialCount}</span>
 </div>
@@ -197,7 +216,6 @@ component communication, define:vars prop injection).
 
 - `CLAUDE.md` — the dialect (golden rules, file skeletons, CMS, status & caveats)
 - `.claude/docs/meno/meno-astro-dialect.md` — full dialect grammar & round-trip contract
-- `.claude/docs/meno/meno-astro-api.md` — the `meno-astro` package API + status
 - `.claude/docs/meno/javascript.md` — component JavaScript patterns
 - the **`/meno-astro`** skill — copy-pasteable authoring cheat-sheet (incl. the CMS template
   skeleton, for CMS-backed components)
@@ -214,4 +232,5 @@ Actions:
      `link` (link).
    - Body: a `style({...})` card wrapper containing `<img src={image} />`, the text content,
      and a `<Link href={href({ _mapping: true, prop: "link" }, { link })}>` CTA.
-   - `const __meno = { category: "ui" };`
+   - No `__meno` needed — the `ui/` folder already groups it (add `__meno` only for
+     `acceptsStyles` / `libraries`).

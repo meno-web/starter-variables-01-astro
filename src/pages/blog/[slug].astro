@@ -1,13 +1,14 @@
 ---
 import { getCollection } from 'astro:content';
-import { i18n, richTextWithComponents, style } from 'meno-astro';
-import { BaseLayout } from 'meno-astro/components';
+import { i18n, richTextWithComponents } from 'meno-astro';
+import { BaseLayout, MenoImage } from 'meno-astro/components';
 import Footer from '../../components/Footer.astro';
 import Layout from '../../components/Layout.astro';
 import Navigation from '../../components/Navigation.astro';
 import { cmsComponents } from '../../cmsComponents';
 import '../../styles/theme.css';
 
+export const prerender = true;
 export async function getStaticPaths() {
   const entries = await getCollection("blog");
   return entries.map((entry) => ({
@@ -19,8 +20,8 @@ export async function getStaticPaths() {
 const { cms } = Astro.props;
 
 const meta = {
-  title: "{{cms.title}}",
-  description: "{{cms.description}}",
+  title: i18n(cms.title),
+  description: i18n(cms.description),
   source: "cms",
   cms: {
     id: "blog",
@@ -42,87 +43,14 @@ const meta = {
 <BaseLayout meta={meta}>
   <Layout cms={cms}>
     <Navigation cms={cms} />
-    <section class={style({
-        base: { padding: "var(--s-p)", backgroundColor: "var(--bg)" },
-        tablet: {},
-        mobile: {}
-      })}>
-      <container class={style({
-          base: { display: "block", maxWidth: "var(--co-s)", margin: "auto" },
-          tablet: {},
-          mobile: {}
-        })}>
-        <span class={style({
-            base: {
-              display: "inline-block",
-              padding: "4px 12px",
-              backgroundColor: "var(--gray-100)",
-              borderRadius: "999px",
-              fontSize: "14px",
-              fontWeight: "500",
-              color: "var(--text)",
-              marginBottom: "16px"
-            },
-            tablet: {},
-            mobile: {}
-          })}>{i18n(cms.category)}</span>
-        <h1 class={style({
-            base: {
-              fontSize: "var(--h-fs)",
-              letterSpacing: "var(--h-ls)",
-              fontWeight: "var(--h-fw)",
-              lineHeight: "var(--h-lh)",
-              color: "var(--text)",
-              marginBottom: "var(--h-m)"
-            },
-            tablet: {},
-            mobile: {}
-          })}>{i18n(cms.title)}</h1>
-        <span class={style({
-            base: {
-              fontSize: "var(--t-fs)",
-              letterSpacing: "var(--t-ls)",
-              fontWeight: "var(--t-fw)",
-              color: "var(--muted)"
-            },
-            tablet: {},
-            mobile: {}
-          })}>{i18n(cms.date)}</span>
-        <img class={style({
-            base: {
-              width: "100%",
-              aspectRatio: "16 / 9",
-              objectFit: "cover",
-              borderRadius: "8px",
-              marginTop: "32px",
-              marginBottom: "32px"
-            },
-            tablet: {},
-            mobile: {}
-          })} src={i18n(cms.image) || undefined} alt={i18n(cms.title) || undefined} />
-        <p class={style({
-            base: {
-              fontSize: "var(--t-fs)",
-              letterSpacing: "var(--t-ls)",
-              fontWeight: "var(--t-fw)",
-              lineHeight: "var(--t-lh)",
-              color: "var(--text)"
-            },
-            tablet: {},
-            mobile: {}
-          })}>{i18n(cms.description)}</p>
-        <div class={style({
-            base: {
-              fontSize: "var(--t-fs)",
-              letterSpacing: "var(--t-ls)",
-              fontWeight: "var(--t-fw)",
-              lineHeight: "var(--t-lh)",
-              color: "var(--text)",
-              marginTop: "24px"
-            },
-            tablet: {},
-            mobile: {}
-          })}><Fragment set:html={richTextWithComponents(cms.content, cmsComponents)} /></div>
+    <section class="p-(--s-p) bg-bg">
+      <container class="m-auto block max-w-(--co-s)">
+        <span class="p-[4px_12px] mb-4 inline-block bg-[var(--gray-100)] text-text rounded-[999px] text-[14px] font-[500]">{i18n(cms.category)}</span>
+        <h1 class="mb-(--h-m) text-text text-(length:--h-fs) font-(number:--h-fw) leading-(--h-lh) tracking-(--h-ls)">{i18n(cms.title)}</h1>
+        <span class="text-muted text-(length:--t-fs) font-(number:--t-fw) tracking-(--t-ls)">{i18n(cms.date)}</span>
+        <MenoImage src={i18n(cms.image) || undefined} alt={i18n(cms.title) || undefined} class="mt-8 mb-8 w-full aspect-video rounded-[8px] object-cover" />
+        <p class="text-text text-(length:--t-fs) font-(number:--t-fw) leading-(--t-lh) tracking-(--t-ls)">{i18n(cms.description)}</p>
+        <div class="mt-6 text-text text-(length:--t-fs) font-(number:--t-fw) leading-(--t-lh) tracking-(--t-ls)"><Fragment set:html={richTextWithComponents(cms.content, cmsComponents)} /></div>
       </container>
     </section>
     <Footer cms={cms} />
