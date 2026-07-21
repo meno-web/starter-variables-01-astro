@@ -151,8 +151,12 @@ Meno templates are `{{expr}}` in the model → JSX `{expr}` in markup:
 <span>{`$${item.price}`}</span>                  // mixed string → backtick
 ```
 
-A `rich-text` prop renders its HTML via `<Fragment set:html={content} />` (or
-`<Fragment set:html={text} />`), not as plain `{text}`.
+A `rich-text` prop renders its HTML through a helper — never plain `{text}` (that HTML-escapes
+the markup) and never a bare `set:html={content}` (that drops any component embedded in the value).
+The helper is tiered by the prop's `editor` meta: **Basic** (`editor` absent/`"basic"`) →
+`<Fragment set:html={richText(content)} />` (lean, no registry); **Extended** (`editor:"extended"`) →
+`<Fragment set:html={richTextWithComponents(content, cmsComponents)} />` (renders project components
+embedded in the rich text; adds `import { cmsComponents } from '<rel>/cmsComponents'`).
 
 ### Links
 

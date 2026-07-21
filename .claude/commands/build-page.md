@@ -62,7 +62,10 @@ authored directly as **meno-astro dialect** and written to `src/pages/<slug>.ast
    ```
 
 5. **Write the page** to `src/pages/<slug>.astro` (e.g. `landing` → `src/pages/landing.astro`).
-   Reject a slug that ends in `.astro` — pass the bare slug.
+   Reject a slug that ends in `.astro` — pass the bare slug. Prefer flat `src/pages/blog.astro`
+   over `src/pages/blog/index.astro` for `/blog` (both are valid Astro folder-index equivalents,
+   but flat is the Meno convention); reach for `blog/index.astro` only to colocate a listing with
+   a `blog/[slug].astro` detail route, and never create both (they'd both claim `/blog`).
 
 ## Key Rules
 

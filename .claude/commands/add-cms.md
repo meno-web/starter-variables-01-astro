@@ -35,8 +35,8 @@ route at `src/pages/<collection>/[slug].astro`. The route **directory** comes fr
 ```astro
 ---
 import { getCollection } from 'astro:content';
-import { i18n } from 'meno-astro';
-import { BaseLayout, Embed } from 'meno-astro/components';
+import { i18n, richText } from 'meno-astro';
+import { BaseLayout } from 'meno-astro/components';
 
 export async function getStaticPaths() {
   const entries = await getCollection("posts");
@@ -72,13 +72,14 @@ const meta = {
   <article>
     <h1>{i18n(cms.title)}</h1>
     <p>{i18n(cms.excerpt)}</p>
-    <Embed html={i18n(cms.content)} />
+    <Fragment set:html={richText(cms.content)} />  <!-- Basic rich-text; Extended → richTextWithComponents(..., cmsComponents) -->
   </article>
 </BaseLayout>
 ```
 
-The `content` field is **rich-text**, so it renders through `<Embed html={…} />` (a
-`set:html` injector) — **not** `{i18n(cms.content)}`. See "Rendering fields in the body" below.
+The `content` field is **rich-text**, so it renders as HTML via `set:html={…}` (Basic →
+`richText(cms.content)`; Extended → `richTextWithComponents(cms.content, cmsComponents)`) — **not**
+`{i18n(cms.content)}` (which would print `[object Object]`). See "Rendering fields in the body" below.
 
 **`meta.cms` is the source of truth — edit it, not the boilerplate.** The
 `import { getCollection }`, the `getStaticPaths()` function, and
@@ -94,28 +95,34 @@ locale (and passes plain strings through). Render depends on the field **type**:
 
 - **Plain fields** (`string` / `text` / `number` / `date` / `select` / `boolean` /
   `image` / `reference`) → a text interpolation `{i18n(cms.field)}`.
-- **Rich-text fields** → `<Embed html={i18n(cms.field)} />` (needs
-  `import { Embed } from 'meno-astro/components';`). `Embed` is a `set:html` injector that
-  renders the field's HTML. A rich-text value is a structured object, so a plain text
-  interpolation `{i18n(cms.richField)}` would print `[object Object]` and **must not** be
-  used — rich-text always goes through `<Embed>`.
+- **Rich-text fields** render as REAL HTML via `set:html={…}` — never a plain text
+  interpolation (a rich-text value is a structured object, so `{i18n(cms.richField)}` would print
+  `[object Object]`). The helper is tiered by the field's `editor` meta:
+  - **Basic** (`editor` absent/`"basic"`, the common case) → `<Fragment set:html={richText(cms.field)} />`
+    (lean, no component registry). Equivalent Embed form: `<Embed html={i18n(cms.field)} />`.
+  - **Extended** (`editor:"extended"`) → `<Fragment set:html={richTextWithComponents(cms.field, cmsComponents)} />`
+    (renders project components embedded in the rich text; adds `import { cmsComponents } from '<rel>/cmsComponents';`).
+    Equivalent Embed form: `<Embed html={i18n(cms.field)} components={cmsComponents} />`.
 
 ```astro
-<h1>{i18n(cms.title)}</h1>          <!-- string field   -->
-<p>{i18n(cms.excerpt)}</p>          <!-- text field     -->
-<Embed html={i18n(cms.content)} />  <!-- rich-text field -->
+<h1>{i18n(cms.title)}</h1>                            <!-- string field          -->
+<p>{i18n(cms.excerpt)}</p>                            <!-- text field            -->
+<Fragment set:html={richText(cms.content)} />         <!-- Basic rich-text field  -->
+<!-- Extended (editor:"extended"): renders embedded components -->
+<Fragment set:html={richTextWithComponents(cms.body, cmsComponents)} />
 ```
 
 A whole-string Meno template `"{{cms.title}}"` (e.g. in `meta.title`) is fine in
-frontmatter literals; in markup, write a plain field as a JSX expression
-`{i18n(cms.field)}` and a rich-text field as `<Embed html={i18n(cms.field)} />`.
+frontmatter literals; in markup, write a plain field as a JSX expression `{i18n(cms.field)}` and a
+rich-text field via `set:html` — Basic `richText(cms.field)` / Extended
+`richTextWithComponents(cms.field, cmsComponents)`.
 
 ### Field Types
 | Type | Description | Example Default |
 |------|-------------|-----------------|
 | `string` | Single line text | `""` |
 | `text` | Multi-line text | `""` |
-| `rich-text` | HTML / rich content (render via `<Embed html={i18n(cms.field)} />`) | `"<p></p>"` |
+| `rich-text` | HTML / rich content (Basic → `set:html={richText(cms.field)}`; Extended `editor:"extended"` → `richTextWithComponents(cms.field, cmsComponents)`) | `"<p></p>"` |
 | `number` | Numeric value | `0` |
 | `boolean` | True/false | `false` |
 | `image` | Image file path | `""` |
@@ -167,18 +174,28 @@ fields — the template page's `meta.cms` is. Don't redefine your field schema t
 ### Rendering a list of CMS items elsewhere
 
 To list a collection on another page, add a frontmatter
-`getCollectionList("posts", { … }, Astro)` const and map it in the body (loop var
-defaults to the singularized collection name):
+`getCollectionList("posts", { … }, Astro, getCollection)` const and map it in the body
+(loop var defaults to the singularized collection name).
+
+**Put the listing at a top-level `src/pages/<collection>.astro`** (e.g. `blog.astro` for
+`/blog`), **NOT** a nested `src/pages/<collection>/index.astro`. In a multi-locale project the
+injected locale route ids a nested index as `<collection>/index`, so its localized URL becomes
+`/pl/<collection>/index` and **`/pl/<collection>` 404s** (the default-locale `/blog` still works
+via Astro's own routing, which hides the miss). `blog.astro` (listing) and `blog/[slug].astro`
+(item template) coexist fine.
 
 ```astro
 ---
+import { getCollection } from 'astro:content';
 import { getCollectionList } from 'meno-astro';
 import { Link } from 'meno-astro/components';
 
+// `getCollection` (from astro:content) is the REQUIRED 4th arg — meno-astro never
+// imports it itself. Omit it and getCollectionList returns [] (the list renders empty).
 const postList = await getCollectionList("posts", {
   sort: { field: "publishedAt", order: "desc" },
   limit: 10
-}, Astro);
+}, Astro, getCollection);
 ---
 { postList.map((post, postIndex) => (
   <Link href={post._url}>
@@ -189,7 +206,8 @@ const postList = await getCollectionList("posts", {
 ```
 
 The same field-type rule applies inside a list: a plain field on a loop item is
-`{i18n(post.field)}`, a rich-text field is `<Embed html={i18n(post.field)} />`.
+`{i18n(post.field)}`, a rich-text field renders via `set:html` (Basic →
+`richText(post.field)`; Extended → `richTextWithComponents(post.field, cmsComponents)`).
 
 ## Reference
 
@@ -207,8 +225,8 @@ Actions:
 1. Create `src/pages/posts/[slug].astro` with:
    - `meta.source: "cms"` and a `meta.cms` schema (id, name, slugField, urlPattern, fields)
    - the derived `getCollection`/`getStaticPaths`/`const { cms } = Astro.props` boilerplate
-   - a body rendering plain fields via `{i18n(cms.field)}` and rich-text fields via
-     `<Embed html={i18n(cms.field)} />`
+   - a body rendering plain fields via `{i18n(cms.field)}` and rich-text fields via `set:html`
+     (Basic → `richText(cms.field)`; Extended `editor:"extended"` → `richTextWithComponents(cms.field, cmsComponents)`)
 2. Create `src/content/posts/hello-world.json` (with `_id` + `_createdAt`)
 3. Note that `src/content.config.ts` already carries a permissive schema for the build;
    `meta.cms` remains the source of truth for fields

@@ -53,10 +53,18 @@ These skills NEVER ask the user mid-run.
 
    If `$STALE_PORTS` is non-empty, mention it in the final report so the user can clean up. SSR-preview ports (8080-range) are expected to fail this check — that's the whole point — so do NOT widen the scan to include them.
 
-5. **Auto-start.** No live server matches the cwd. Read `package.json` `scripts.dev` (typical values: `meno dev` for user projects, `bun run --filter @meno/studio dev` for the editor monorepo). Spawn in the background and poll for up to 30s until a Studio port appears for the new PID.
+5. **Auto-start.** No live server matches the cwd.
+
+   **Claude Desktop first:** if the environment supports launch configurations and
+   `.claude/launch.json` exists, start the dev server from that launch configuration instead
+   of a shell command — Claude Desktop then owns the process, opens the preview pane
+   automatically, and passes the resolved port via `$PORT`. Only fall back to the shell
+   spawn below when launch configurations aren't available (e.g. the Claude Code CLI).
+
+   Shell fallback: if `package.json` has a `scripts.meno` entry (standalone-scaffolded projects ship `"meno": "npx -y meno-studio@latest dev"` — the editor launcher), run that. Otherwise read `scripts.dev` (typical values: `meno dev` for user projects, `bun run --filter @meno/studio dev` for the editor monorepo). **If `scripts.dev` is not a meno/studio command** (standalone-scaffolded projects have `"dev": "astro dev"` — that starts the site, NOT the editor), use `npx -y meno-studio@latest dev` instead. Spawn in the background and poll for up to 30s until a Studio port appears for the new PID.
 
    ```bash
-   nohup bash -c "$(jq -r '.scripts.dev' package.json)" \
+   nohup bash -c "$(jq -r '.scripts.meno // .scripts.dev' package.json)" \
      > /tmp/meno-dev-$$.log 2>&1 &
    echo $! > /tmp/meno-dev-$$.pid
    # then poll lsof -aP -p $(cat /tmp/meno-dev-$$.pid) -iTCP -sTCP:LISTEN -Fn

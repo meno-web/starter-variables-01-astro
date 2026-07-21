@@ -32,6 +32,12 @@ needs detail beyond this cheat-sheet.
    form** — the editor canonicalizes on-scale + known-token values to the named form on save (`p-[16px]`
    re-emits as `p-4`).
    ✅ `<div class="flex gap-[12px] p-[24px] max-lg:p-[16px] hover:bg-[#222]">` · foreign coexist: `class="p-[24px] swiper"`
+   ❌ **Don't scaffold a NEW design as semantic classes + CSS** (`class="hero"` + a `<style>` /
+   stylesheet defining `.hero { … }`) — it builds, but it's foreign CSS the visual styles panel
+   can't represent, so the design lands visually un-editable. Even on a blank project: define the
+   design system as tokens in `src/styles/theme.css` first, then style with utility classes bound
+   to them. A component `<style>` is only for what utilities can't express — `@keyframes`,
+   `::before`/`::after`, complex selectors — never layout/spacing/color/typography.
    **Every styleable node carries it the same way** — an `<Embed>`, `<Link>`, or `<Markdown>` takes
    `class="…"` (incl. `hover:`/`focus:`/`active:`) just like a `<div>`; only `list`/`island`/`slot`/`custom` have no styling.
    **Named VALUE scales bind to YOUR variables — never Tailwind's defaults.** `text-lg`, `font-semibold`,
@@ -42,7 +48,28 @@ needs detail beyond this cheat-sheet.
    `shadow-[0_4px_12px_#0002]`) or a defined token — don't assume a named scale "just works".
    *Computed* forms DO work standalone (these are Tailwind's definitions, not opinionated values):
    fractions (`w-1/2`→50%), negatives (`-mt-4`), grid (`grid-cols-3`, `col-span-2`, `row-span-2`),
-   transforms (`scale-105`, `rotate-45`, `translate-x-2`), transitions (`duration-300`, `ease-in-out`).
+   transforms (`scale-105`, `rotate-45`, `translate-x-2`, `skew-y-3`, `scale-x-95`), transitions
+   (`duration-300`, `ease-in-out`),
+   filters (`blur-[70px]` → `filter: blur(70px)`, `brightness-50` → `brightness(0.5)`, `grayscale`,
+   `invert-25`, `hue-rotate-90`, `drop-shadow-[0_4px_6px_#0003]`, `backdrop-blur-[8px]`, `blur-(--glow)`;
+   the length scales `blur-sm`/`blur-md`/`drop-shadow-md` are unsupported — use brackets),
+   and borders — `border`, `border-b`, `border-2`, `border-t-4`, `border-x`, `border-solid` render a
+   visible `1px solid` border, color inherits (Meno has no Preflight, so a width-only border would be
+   invisible); set the color with `border-<token>`/`border-[#hex]`, the style with `border-dashed`.
+   Tailwind palette colors (`border-gray-200`) stay unsupported — use a token.
+   **Tailwind idioms with NO effect here — write the working form instead:**
+   - `md:`/`lg:`/`sm:` min-width variants → desktop-first `max-lg:` (≤1024px) / `max-sm:` (≤540px) only.
+   - `dark:`, `group-hover:`, `peer-*` → not modeled; only `hover:`/`focus:`/`active:` exist (theme via tokens).
+   - Gradient stops `bg-gradient-to-r from-… via-… to-…` → ONE arbitrary value:
+     `bg-[linear-gradient(to_right,#111,#333)]`.
+   - `space-y-4`/`space-x-*`/`divide-*` (child selectors) → flex/grid + `gap-4`.
+   - `truncate` → `overflow-hidden text-ellipsis whitespace-nowrap`; `line-clamp-3` →
+     `[display:-webkit-box] [-webkit-line-clamp:3] [-webkit-box-orient:vertical] overflow-hidden`.
+   - `ring-2` → `outline-2 outline-<token> outline-offset-2` (or `shadow-[0_0_0_3px_#0003]`).
+   - `animate-spin`/`animate-*` → define `@keyframes` in a component `<style>` (an allowed use) and
+     reference it: `[animation:spin_1s_linear_infinite]`.
+   - `container` → `w-full max-w-[1200px] mx-auto`.
+   - `sr-only`/`antialiased` (multi-property) → arbitrary properties (`[clip:rect(0,0,0,0)]`, …) or omit.
    Three things CAN'T be a static class (they need per-instance prop values) → runtime helpers:
    - **Prop-bound `{{template}}`** (`gap: "{{gap}}px"`) — keeps a `style({...})` call (round-trip)
      AND emits inline. On a component root wrap the inline as
@@ -63,6 +90,10 @@ needs detail beyond this cheat-sheet.
      `class={cx(style(OBJ, __props), className)}`. A per-use override on an instance rides its `class`
      prop (`<Card class="p-[24px]" />`); the `instance`/`root`/`__menoStyle` markers are emit-only
      (dropped on parse) — match emit's forms when hand-authoring.
+   A node's editor **layer name** rides the reserved `data-meno-label="…"` attribute (parses to the
+   model's `label`, never to a real attribute/prop — keep it when editing, add one to name a layer);
+   only a node that already carries a `style()` call keeps its label inside the `style()` meta
+   argument (`style({…}, __props, { label: "…" })`) instead.
 
 2. **i18n values live in `i18n({...})`** with the `{ _i18n: true, en, pl, ... }` shape.
    ✅ `<Heading text={i18n({ _i18n: true, en: "About", pl: "O nas" })} />`
@@ -81,6 +112,12 @@ needs detail beyond this cheat-sheet.
    - i18n → `text={i18n({ _i18n: true, ... })}`
    Component tags are Capitalized and need a matching local import in the frontmatter
    (`import Name from '../components/Name.astro'` for pages, `'./Name.astro'` for components).
+   The **built-in node components** — `Link`, `Embed`, `Markdown`, `MenoImage`, `LocaleList` —
+   import from **`meno-astro/components`** instead (`import { Link } from 'meno-astro/components'`),
+   never from `../components/`. Emit auto-injects this import, so it's only ever missing when
+   hand-authoring: a file that uses `<Link>` without it parses and round-trips fine, then throws
+   `Link is not defined` at render until the next save (a runtime `ReferenceError`, not a parse
+   error — the round-trip check won't catch it).
 
 5. **The `resolveProps(Astro, {…})` argument is authoritative for component props.**
    There is no separate `interface Props`/`__meno_props`: a component declares its props
@@ -93,7 +130,7 @@ needs detail beyond this cheat-sheet.
    `style()` tables): **no trailing commas** and **no ES6 shorthand** — write `{ size: size }`, not
    `{ size }`, and no comma before a closing `}`. A violation throws `parseLiteral: expected object
    key` / `expected ":"`, and **a file that fails to parse gets no utility CSS at all** (it renders
-   unstyled, silently) — sanity-check with the codec (step 4 below) after non-trivial edits. For
+   unstyled, silently) — so hold this rule in mind as you write. For
    prop-driven styling, bind `variants()`/`style()` to the whole props object:
    `const __props = resolveProps(Astro, {...}); const { ...names, class: className } = __props;`.
    Component metadata (`acceptsStyles`, `libraries`) goes in
@@ -127,8 +164,10 @@ needs detail beyond this cheat-sheet.
      It round-trips through the codec **and** `astro build` renders it — but the component
      **fails to open in Studio** with `interface.items — list prop requires itemSchema and an
      object-array default`. Always give a list prop an `itemSchema` + object-array default.
-   - collection list → a frontmatter `const xList = await getCollectionList("blog", { ... }, Astro)`
-     then `{ xList.map((blog, blogIndex) => ( … )) }` (loop var defaults to `singularize(source)`).
+   - collection list → a frontmatter `const xList = await getCollectionList("blog", { ... }, Astro,
+     getCollection)` (import `getCollection` from `astro:content` — the **required** 4th arg; omit it
+     and the list silently returns `[]`) then `{ xList.map((blog, blogIndex) => ( … )) }` (loop var
+     defaults to `singularize(source)`).
    ⚠ If you author a collection list, make the loop variable match the templates in the
    body (`(blog, blogIndex)` + `{{blog.title}}`). Set `itemAs` if you want a specific name.
    A known bug: legacy `cms-list` migration uses `{{item.*}}` in the body but binds
@@ -219,6 +258,13 @@ const meta = {
 </BaseLayout>
 ```
 
+**Page file naming (matters for multi-locale):** a section/listing page is a top-level file
+`src/pages/<name>.astro` (→ `/<name>`, and `/pl/<name>`), **not** a nested
+`src/pages/<name>/index.astro`. Only the site root is an `index.astro`. The injected locale
+route ids a nested index as `<name>/index`, so its localized URL becomes `/pl/<name>/index` and
+**`/pl/<name>` 404s** (the default-locale `/<name>` still works via Astro routing, masking the
+bug). Pair a collection listing `blog.astro` with its item template `blog/[slug].astro`.
+
 Optional SEO/head fields ride the same plain `const meta` (never `export`/`satisfies`):
 `viewTransitions: true` (→ `<ClientRouter>`), `noindex: true`, `sitemap: { priority, changefreq,
 exclude }`, `customCode: { head, bodyStart, bodyEnd }`. **`prerender: true | false`** is the
@@ -230,26 +276,35 @@ to inherit the project `output`. Project-wide config (`redirects`, remote
 
 **CMS template page** (`src/pages/<collection>/[slug].astro`) — a page whose
 `meta.source === "cms"` + `meta.cms` schema; the body renders the current item's plain
-fields via `{i18n(cms.field)}` and a **rich-text** field bound as a text child via
-`<Fragment set:html={richTextWithComponents(cms.field, cmsComponents)} />` — never a text
-interpolation (a plain `{i18n(cms.richField)}` would print `[object Object]`).
-`richTextWithComponents` converts the TipTap value to HTML **and renders components
-embedded in the rich text** (TipTap `menoComponent` nodes) against `cmsComponents`, the
-generated registry module (`src/cmsComponents.ts` — don't hand-edit it; it's a constant
-`import.meta.glob` over `src/components/`). The **same registry-backed render** applies
-everywhere a rich-text value is shown, not just a CMS text child:
-- a component's `type:"rich-text"` **prop** renders via
-  `<Fragment set:html={richTextWithComponents(<prop>, cmsComponents)} />` (+ the
-  `cmsComponents` import) — **never** a bare `set:html={<prop>}`;
-- an **embed node** bound to a rich-text field passes the registry:
-  `<Embed html={i18n(cms.field)} components={cmsComponents} />`.
+fields via `{i18n(cms.field)}` and a **rich-text** field bound as a text child as REAL HTML
+via `set:html={…}` — never a text interpolation (a plain `{i18n(cms.richField)}` would print
+`[object Object]`). The **render helper is picked by the field's `editor` meta**:
 
-A bare `set:html={value}` (or `<Embed html={value}>` without `components`) renders text and
-URL embeds but **drops any component embedded in the rich text** — it ships as an empty
-`<div data-meno-component="…">`. **Troubleshooting** "an embedded component doesn't render":
-the renderer is using the bare form — switch it to `richTextWithComponents(value,
-cmsComponents)` / add `components={cmsComponents}`, and make sure `src/cmsComponents.ts`
-exists (the editor stamps it on save; if missing, create it as the `import.meta.glob` above).
+- **Basic** (`editor` absent/`"basic"`, the common case) →
+  `<Fragment set:html={richText(cms.field)} />`. `richText` converts the TipTap value to HTML
+  and does i18n + internal-link localization — but imports **no** component registry (lean).
+- **Extended** (`editor:"extended"`) →
+  `<Fragment set:html={richTextWithComponents(cms.field, cmsComponents)} />`.
+  `richTextWithComponents` does everything `richText` does **and renders components embedded in the
+  rich text** (TipTap `menoComponent` nodes) against `cmsComponents`, the generated registry module
+  (`src/cmsComponents.ts` — don't hand-edit it; it's a constant `import.meta.glob` over
+  `src/components/`).
+
+The same `editor`-tiered split applies everywhere a rich-text value is shown, not just a CMS text child:
+- a component's `type:"rich-text"` **prop** renders via `set:html={richText(<prop>)}` (Basic) or
+  `<Fragment set:html={richTextWithComponents(<prop>, cmsComponents)} />` (Extended, + the
+  `cmsComponents` import) — **never** a bare `set:html={<prop>}` (that HTML-escapes the markup);
+- an **embed node** bound to a rich-text field: Extended passes the registry
+  (`<Embed html={i18n(cms.field)} components={cmsComponents} />`); Basic omits it
+  (`<Embed html={i18n(cms.field)} />` — Embed.astro then normalizes via `richText`).
+
+An **Extended** value shown via a bare `set:html={value}` (or `<Embed html={value}>` without
+`components`) renders text and URL embeds but **drops any component embedded in the rich text** — it
+ships as an empty `<div data-meno-component="…">`. **Troubleshooting** "an embedded component doesn't
+render": either the field/prop isn't marked `editor:"extended"`, or the renderer is using the
+lean/bare form — mark it Extended and switch to `richTextWithComponents(value, cmsComponents)` / add
+`components={cmsComponents}`, and make sure `src/cmsComponents.ts` exists (the editor stamps it on
+save; if missing, create it as the `import.meta.glob` above).
 The `import { getCollection }`,
 `getStaticPaths()`, `const { cms } = Astro.props;`, and the `cmsComponents` import are
 **derived boilerplate** — they're regenerated from the model on emit and the parser skips
@@ -259,7 +314,8 @@ editor still addresses it as `/templates/<collectionId>`.
 ```astro
 ---
 import { getCollection } from 'astro:content';
-import { i18n, richTextWithComponents } from 'meno-astro';
+// `richText` (Basic) / `richTextWithComponents` (Extended) — import whichever the field's `editor` needs.
+import { i18n, richText, richTextWithComponents } from 'meno-astro';
 import { BaseLayout } from 'meno-astro/components';
 import { cmsComponents } from '../../cmsComponents';
 
@@ -281,7 +337,9 @@ const meta = {
 ---
 <BaseLayout meta={meta}>
   <h1>{i18n(cms.title)}</h1>
-  <!-- a rich-text field (renders embedded components too): -->
+  <!-- a Basic rich-text field (lean, no registry): -->
+  <Fragment set:html={richText(cms.excerpt)} />
+  <!-- an Extended rich-text field (`editor:"extended"`) — renders embedded components too: -->
   <Fragment set:html={richTextWithComponents(cms.body, cmsComponents)} />
 </BaseLayout>
 ```
@@ -317,11 +375,9 @@ const { text, class: className } = resolveProps(Astro, {
    `example-astro/src/**` is the reference for real generated output).
 3. **Edit the `resolveProps(Astro, {…})` literal** for prop changes; the destructured
    names + their inferred TS types are regenerated on save.
-4. **Validate mentally against the grammar** above before writing. If the project has the
-   codec available, you can sanity-check a snippet round-trips with:
-   ```
-   bun -e 'import {emit,parse,normalizeModel} from "meno-astro/dialect"; /* parse(src) then emit(model) */'
-   ```
+4. **Validate mentally against the grammar** above before writing — that's the check. Don't
+   shell out to the codec to round-trip a snippet, and don't write tooling to parse-check
+   your edits; the editor reports parse failures on its own.
 5. **Stay inside the grammar.** Anything you can't express in dialect (ad-hoc Astro frontmatter
    logic) will be lost on the next save — flag it instead of writing it. A utility/foreign
    `class="…"` IS in the grammar now (rule 1).

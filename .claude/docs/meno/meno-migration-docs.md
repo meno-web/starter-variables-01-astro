@@ -9,11 +9,6 @@ model (`components.md`), and what the **installed runtime actually does**. Where
 disagree, this doc reflects behavior verified empirically against **meno-astro 0.1.32** on
 a running dev server — test on yours; other versions may differ.
 
-> **The single biggest time-saver: set up the parse/emit checker (below) FIRST and run it
-> after every component edit.** Most wasted time in a migration is a component that renders
-> blank because it silently failed to parse — the checker catches that in milliseconds
-> without a browser round-trip.
-
 ---
 
 ## 0. The mental model you must have first
@@ -35,8 +30,8 @@ generates CSS for exactly those. Consequences that are NOT obvious from the docs
    **computes a deterministic class name**. This distinction is the root of the color bug
    in §4.
 
-So: **author only what the parser round-trips.** Verify with the checker in §2 before you
-ever open the browser.
+So: **author only what the parser round-trips.** Stay inside the grammar the dialect spec
+documents — an out-of-grammar construct fails silently, not loudly.
 
 ---
 
@@ -44,14 +39,14 @@ ever open the browser.
 
 1. **Find the source CSS.** A Webflow import loads a big minified stylesheet (often via
    `meta.customCode.head` as a `/…/*.webflow.*.min.css` link under `public/`). Beautify it
-   and build a per-selector lookup (§2 scripts). The `:root` block is a **ready-made design
+   and build a per-selector lookup (§2). The `:root` block is a **ready-made design
    token system** — port it wholesale.
 2. **Port tokens → `src/styles/theme.css`** (§5). Base palette + semantic aliases
    (`var()` aliasing works). This is your "variables".
 3. **Capture ground truth** (§3): open the running site, dump `getComputedStyle` for every
    element you're about to convert. This is your pixel target.
-4. **Build the `ui` atoms** (`Heading`, `Text`, `Button`, …) using the §4 pattern. Run the
-   §2 checker on each. Then render on a throwaway page and diff computed styles vs step 3.
+4. **Build the `ui` atoms** (`Heading`, `Text`, `Button`, …) using the §4 pattern. Render
+   them on a throwaway page and diff computed styles vs step 3.
 5. **Convert one section**: replace its Webflow classes with utilities + your components,
    in place, by line range. Keep the outer page wrapper and other sections untouched (the
    original CSS stays loaded and styles them — see §6).
@@ -63,39 +58,16 @@ section is converted.
 
 ---
 
-## 2. Verification tooling — build these first
-
-No local `node_modules` in these projects (a shared runtime serves the dev server), but you
-can import the dialect codec from any sibling install of the package:
-`find / -type d -name meno-astro -path '*/node_modules/*'`.
-
-**`parsecheck.mjs`** — does a file parse? what classes reach the model? (run after every edit)
-```js
-import { parse } from '<abs-path>/meno-astro/dist/lib/dialect/index.js';
-import { readFileSync } from 'node:fs';
-function collect(n,out){ if(!n||typeof n!=='object')return;
-  if(Array.isArray(n)){n.forEach(x=>collect(x,out));return;}
-  const c=n.attributes?.class??n.props?.class;
-  if(typeof c==='string')c.split(/\s+/).forEach(t=>t&&out.add(t));
-  for(const k of Object.keys(n))collect(n[k],out); }
-for(const f of process.argv.slice(2)){
-  try{ const m=parse(readFileSync(f,'utf8')); const o=new Set(); collect(m.model??m,o);
-    console.log('OK  ',f,'\n  classes:',[...o].join(' ')||'(none)'); }
-  catch(e){ console.log('FAIL',f,'\n  error:',e.message); } }
-```
-**`modeldump.mjs`** — see the model + the canonical re-emit (checks round-trip stability;
-tells you the exact class string the codec expects so runtime == generated CSS):
-```js
-import { parse, emit } from '<abs-path>/meno-astro/dist/lib/dialect/index.js';
-import { readFileSync } from 'node:fs';
-const m = parse(readFileSync(process.argv[2],'utf8'));
-console.log(JSON.stringify(m.model??m,null,1));
-console.log('--- RE-EMIT ---\n'+emit(m.model??m));
-```
+## 2. Source-CSS lookup
 
 **`cssq.py`** — pull the exact rules for a class out of the (beautified) source CSS, with
 their `@media` context. Brace-match `@media`/rule blocks; print rules whose selector
 contains any argv term. (Trivial to reproduce; saves guessing token values.)
+
+**Don't build parse-checking tooling.** The editor surfaces parse failures on its own —
+don't write a `parsecheck`/`modeldump` script, don't hunt for a sibling `meno-astro` install
+to import the codec from, and don't re-check files after each edit. Author inside the
+grammar (§0) and let the editor report what didn't parse.
 
 ---
 
@@ -202,10 +174,15 @@ Non-color bracket utilities (`text-[3.5rem]`, `gap-[8px]`, gradients) are fine i
   `[font-family:var(--font-mono)]`, `[transition:all_0.3s]`. Use for anything without a
   named utility.
 - **Gradient:** `bg-[linear-gradient(189deg,var(--a)_12%,var(--b))]` — works verbatim.
-- **BORDER:** bare `border` / `border-2` / `border-solid` produce **no border**
-  (`border-[1px]` emits the `border` shorthand → resets style to `none`). Use
-  `border-[1px_solid_var(--token)]` (shorthand) or `[border-width:1px] [border-style:solid]
-  border-(--token)`. Same for one side: `[border-bottom:1px_solid_var(--token)]`.
+- **BORDER:** bare `border` / `border-2` / `border-t` / `border-b-4` / `border-solid` now render a
+  visible `1px solid` border (the width you name + `solid`; the color is left off so it inherits the
+  current text color) — Meno supplies the style a Preflight-less setup otherwise lacks. Set the **color**
+  with a token or literal — `border` `border-(--token)` (or `border-[#0c0c0c]`); the per-side forms emit
+  no color at all, so a `border-<token>` class controls it with no cascade fight — and the **style** with
+  `border-dashed` / `border-dotted`. `border-x` / `border-y` target the inline / block axes. Still
+  unsupported: Tailwind's palette (`border-gray-200`) — use a token. The fully-explicit
+  `border-[1px_solid_var(--token)]` / `[border-bottom:1px_solid_var(--token)]` forms remain valid if you
+  prefer to name everything in one utility.
 - **Layout:** `flex`, `inline-flex`, `flex-col`, `grid`, `grid-cols-2`, `items-center`,
   `justify-center`, `justify-start`, `gap-[8px]`, `flex-wrap`, `h-full`, `w-full`,
   `overflow-auto`, `hidden`, `inline-block`, `uppercase`, `no-underline`.
@@ -245,6 +222,13 @@ Non-color bracket utilities (`text-[3.5rem]`, `gap-[8px]`, gradients) are fine i
 
 ## 7. Parser & environment facts (save yourself the debugging)
 
+- **Every component needs the `resolveProps(Astro, {…})` call — even with no props.** It's the marker
+  that makes the `.astro` a *component*. Omit it and the parser reads the file as a *page* (a `root`,
+  no component `structure`); `/api/component-data` then returns 400 and **Studio fails to open it with
+  "This component is missing its structure definition."** So when you extract a section into a
+  component, always include `const { class: className } = resolveProps(Astro, {});` (add props to the
+  `{…}` as needed). This — NOT a literal `class="…"` — is the usual cause of that Studio error (a
+  component with all-literal classes opens fine as long as `resolveProps` is present).
 - **NO trailing commas** and **NO ES6 shorthand** in any dialect object literal
   (`resolveProps`, `variants`/`style` tables). `{ size }` → `{ size: size }`; no comma
   before `}`. Violations throw `parseLiteral: expected object key` / `expected ":"`.
